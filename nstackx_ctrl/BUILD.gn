@@ -18,6 +18,7 @@ cflags = [
   "-DENABLE_USER_LOG",
   "-DDFINDER_SAVE_DEVICE_LIST",
   "-DNSTACKX_EXTEND_BUSINESSDATA",
+  "-DNSTACKX_DFINDER_HIDUMP",
 ]
 include_dirs = []
 
@@ -40,7 +41,10 @@ if (defined(ohos_lite)) {
         "core/nstackx_common.c",
         "core/nstackx_database.c",
         "core/nstackx_device.c",
+        "core/nstackx_dfinder_hidump.c",
+        "core/nstackx_dfinder_hievent.c",
         "core/nstackx_dfinder_log.c",
+        "core/nstackx_statistics.c",
       ]
       include_dirs = [
         "include",
@@ -79,8 +83,11 @@ if (defined(ohos_lite)) {
         "core/nstackx_common.c",
         "core/nstackx_database.c",
         "core/nstackx_device.c",
+        "core/nstackx_dfinder_hidump.c",
+        "core/nstackx_dfinder_hievent.c",
         "core/nstackx_dfinder_log.c",
         "core/nstackx_smartgenius.c",
+        "core/nstackx_statistics.c",
       ]
       ctrl_include = [
         "../nstackx_util/interface",
@@ -135,8 +142,11 @@ if (defined(ohos_lite)) {
       "core/nstackx_common.c",
       "core/nstackx_database.c",
       "core/nstackx_device.c",
+      "core/nstackx_dfinder_hidump.c",
+      "core/nstackx_dfinder_hievent.c",
       "core/nstackx_dfinder_log.c",
       "core/nstackx_smartgenius.c",
+      "core/nstackx_statistics.c",
     ]
     include_dirs += [
       "//third_party/bounds_checking_function/include",
