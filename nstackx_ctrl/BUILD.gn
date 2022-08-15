@@ -86,6 +86,7 @@ if (defined(ohos_lite)) {
         "core/nstackx_dfinder_hidump.c",
         "core/nstackx_dfinder_hievent.c",
         "core/nstackx_dfinder_log.c",
+        "core/nstackx_dfinder_mgt_msg_log.c",
         "core/nstackx_smartgenius.c",
         "core/nstackx_statistics.c",
       ]
@@ -117,6 +118,7 @@ if (defined(ohos_lite)) {
       cflags += [
         "-fPIC",
         "-std=c99",
+        "-DDFINDER_MGT_MSG_LOG",
       ]
       cflags_cc = cflags
       ldflags = [
@@ -133,6 +135,7 @@ if (defined(ohos_lite)) {
     include_dirs = [ "interface" ]
   }
   ohos_shared_library("nstackx_ctrl") {
+    cflags += [ "-DDFINDER_MGT_MSG_LOG" ]
     cflags_cc = cflags
     sources = [
       "core/coap_discover/coap_app.c",
@@ -145,6 +148,7 @@ if (defined(ohos_lite)) {
       "core/nstackx_dfinder_hidump.c",
       "core/nstackx_dfinder_hievent.c",
       "core/nstackx_dfinder_log.c",
+      "core/nstackx_dfinder_mgt_msg_log.c",
       "core/nstackx_smartgenius.c",
       "core/nstackx_statistics.c",
     ]
