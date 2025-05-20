@@ -56,7 +56,7 @@ if (defined(ohos_lite)) {
       sources = []
       deps = []
       external_deps = []
-      if (dsoftbus_feature_dfile) {
+      if (t2stack_feature_dfile) {
         sources += [
           "$NSTACKX_ROOT/nstackx_core/platform/liteos/dfile/sys_dfile.c",
           "$NSTACKX_ROOT/nstackx_core/platform/liteos/dfile/sys_dfile_session.c",
@@ -98,7 +98,7 @@ if (defined(ohos_lite)) {
       sources = []
       deps = []
       external_deps = []
-      if (dsoftbus_feature_dfile) {
+      if (t2stack_feature_dfile) {
         sources += [
           "$NSTACKX_ROOT/nstackx_core/platform/unix/dfile/sys_dfile.c",
           "$NSTACKX_ROOT/nstackx_core/platform/unix/dfile/sys_dfile_session.c",
@@ -163,7 +163,7 @@ if (defined(ohos_lite)) {
     sources = []
     deps = []
     external_deps = []
-    if (dsoftbus_feature_dfile) {
+    if (t2stack_feature_dfile) {
       sources += [
         "$NSTACKX_ROOT/nstackx_core/platform/unix/dfile/sys_dfile.c",
         "$NSTACKX_ROOT/nstackx_core/platform/unix/dfile/sys_dfile_session.c",
@@ -197,6 +197,6 @@ if (defined(ohos_lite)) {
     }
     innerapi_tags = [ "platformsdk_indirect" ]
     part_name = "t2stack"
-    subsystem_name = "dsoftbus"
+    subsystem_name = "communication"
   }
 }

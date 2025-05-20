@@ -12,9 +12,9 @@
 # limitations under the License.
 
 declare_args() {
-  dsoftbus_feature_vtp = true
-  dsoftbus_feature_dfile = true
-  dsoftbus_feature_dmsg = true
-  dsoftbus_feature_coap = true
-  dsoftbus_feature_inner_coap = true
+  t2stack_feature_vtp = true
+  t2stack_feature_dfile = true
+  t2stack_feature_dmsg = true
+  t2stack_feature_coap = true
+  t2stack_feature_inner_coap = true
 }
