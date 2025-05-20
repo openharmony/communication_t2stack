@@ -4,7 +4,7 @@
   "description": "t2stack",
   "publishAs": "code-segment",
   "segment": {
-    "destPath": "t2stack"
+    "destPath": "foundation/communication/t2stack"
   },
   "dirs": {},
   "scripts": {},
@@ -13,19 +13,19 @@
   "license": "Apache License 2.0",
   "component": {
     "name": "t2stack",
-    "subsystem": "dsoftbus",
+    "subsystem": "communication",
     "adapted_system_type": [
       "mini",
       "small",
       "standard"
     ],
     "features": [
-      "dsoftbus_feature_vtp",
-      "dsoftbus_feature_dfile",
-      "dsoftbus_feature_dmsg",
-      "dsoftbus_feature_dnet",
-      "dsoftbus_feature_linkfinder",
-      "dsoftbus_feature_coap"
+      "t2stack_feature_vtp",
+      "t2stack_feature_dfile",
+      "t2stack_feature_dmsg",
+      "t2stack_feature_dnet",
+      "t2stack_feature_linkfinder",
+      "t2stack_feature_coap"
     ],
     "rom": "3000KB",
     "ram": "40MB",
@@ -35,6 +35,7 @@
         "hilog",
         "openssl",
         "c_utils",
+        "cJSON",
         "mbedtls",
         "libcoap"
       ],
@@ -50,8 +51,8 @@
       ]
     },
     "build": {
-      "moudles" : [
-        "//t2stack:nstackx"
+      "modules" : [
+        "//foundation/communication/t2stack:nstackx"
       ],
       "inner_api": [
       ],
