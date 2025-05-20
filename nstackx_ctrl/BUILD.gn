@@ -16,7 +16,7 @@ import("$NSTACKX_ROOT/t2stack.gni")
 
 # basic compilation options
 
-if (dsoftbus_feature_inner_coap) {
+if (t2stack_feature_inner_coap) {
   cflags = [
     "-DENABLE_USER_LOG",
     "-DNSTACKX_EXTEND_BUSINESSDATA",
@@ -100,7 +100,7 @@ if (defined(ohos_lite)) {
   if (ohos_kernel_type == "liteos_m") {
     import("//build/lite/config/component/lite_component.gni")
     static_library("nstackx_ctrl") {
-      if (!dsoftbus_feature_inner_coap) {
+      if (!t2stack_feature_inner_coap) {
         sources = [ "core/nstackx_common_virtual.c" ]
         include_dirs = [
           "interface",
@@ -132,7 +132,7 @@ if (defined(ohos_lite)) {
   } else {
     import("//build/lite/config/component/lite_component.gni")
     shared_library("nstackx_ctrl") {
-      if (!dsoftbus_feature_inner_coap) {
+      if (!t2stack_feature_inner_coap) {
         sources = [ "core/nstackx_common_virtual.c" ]
         include_dirs = [
           "interface",
@@ -187,7 +187,7 @@ if (defined(ohos_lite)) {
     }
     branch_protector_ret = "pac_ret"
 
-    if (!dsoftbus_feature_inner_coap) {
+    if (!t2stack_feature_inner_coap) {
       sources = [ "core/nstackx_common_virtual.c" ]
       include_dirs = [
         "interface",
@@ -216,6 +216,6 @@ if (defined(ohos_lite)) {
     }
     innerapi_tags = [ "platformsdk_indirect" ]
     part_name = "t2stack"
-    subsystem_name = "dsoftbus"
+    subsystem_name = "communication"
   }
 }
