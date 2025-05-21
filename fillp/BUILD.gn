@@ -11,8 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-DSOFTBUS_ROOT_PATH = "./.."
-import("$DSOFTBUS_ROOT_PATH/t2stack.gni")
+T2STACK_ROOT_PATH = "./.."
+import("$T2STACK_ROOT_PATH/t2stack.gni")
 
 fillp_include = [
   "include",
@@ -42,7 +42,7 @@ if (defined(ohos_lite)) {
     sources = []
     deps = []
     external_deps = []
-    if (dsoftbus_feature_vtp) {
+    if (t2stack_feature_vtp) {
       sources += [
         "src/app_lib/src/api.c",
         "src/app_lib/src/epoll_app.c",
@@ -91,7 +91,7 @@ if (defined(ohos_lite)) {
         "src/public/src/timing_wheel.c",
       ]
       deps += [
-        "$DSOFTBUS_ROOT_PATH/nstackx_util:nstackx_util.open",
+        "$T2STACK_ROOT_PATH/nstackx_util:nstackx_util.open",
       ]
       external_deps += [ "bounds_checking_function:libsec_shared" ]
     }
@@ -124,7 +124,7 @@ if (defined(ohos_lite)) {
     sources = []
     deps = []
     external_deps = []
-    if (dsoftbus_feature_vtp) {
+    if (t2stack_feature_vtp) {
       sources += [
         "src/app_lib/src/api.c",
         "src/app_lib/src/epoll_app.c",
@@ -173,7 +173,7 @@ if (defined(ohos_lite)) {
         "src/public/src/timing_wheel.c",
       ]
       deps += [
-        "$DSOFTBUS_ROOT_PATH/nstackx_util:nstackx_util.open",
+        "$T2STACK_ROOT_PATH/nstackx_util:nstackx_util.open",
       ]
       external_deps += [ "bounds_checking_function:libsec_shared" ]
     }
@@ -183,6 +183,6 @@ if (defined(ohos_lite)) {
 
     innerapi_tags = [ "platformsdk_indirect" ]
     part_name = "t2stack"
-    subsystem_name = "dsoftbus"
+    subsystem_name = "communication"
   }
 }
