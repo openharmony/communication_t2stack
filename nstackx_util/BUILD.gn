@@ -232,6 +232,6 @@ if (defined(ohos_lite)) {
     public_configs = [ ":nstackx_util_header" ]
     innerapi_tags = [ "platformsdk_indirect" ]
     part_name = "t2stack"
-    subsystem_name = "dsoftbus"
+    subsystem_name = "communication"
   }
 }
