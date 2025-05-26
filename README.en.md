@@ -7,6 +7,12 @@ File transfer capability: Mainly for file sharing and cloning scenarios, compare
 
 Streaming capability: Mainly for video streaming and audio streaming scenarios, it implements three competitive solutions, including semi-reliable transmission, adaptive bandwidth evaluation bitrate, and dynamic caching for weak network detection, to optimize user experience.
 
+Device discovery capability: It mainly provides the ability to discover between devices in the local area network, and realizes reliable unicast, power-reducing filtering, and scalable packet structure.
+
+#### System Architecture
+
+![](figures/t2stack_arch_eng.jpg)
+
 #### Instructions
 
 t2stack main code directory structure is as follows：
