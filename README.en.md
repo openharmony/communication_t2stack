@@ -3,7 +3,7 @@
 ## Description
 t2stack is a collective name for the simplified network protocol stack and its supporting middleware for intelligent terminal scenarios. It mainly provides three core capabilities: file transmission, audio and video stream transmission, and device discovery, while being compatible with various operating system platforms.
 
-File transfer capability: Mainly for file sharing and cloning scenarios, compared with the Linux kernel protocol stack used before the application, the innovative protocol of t2stack can provide higher bandwidth utilization and lower latency than TCP in the WIFI environment, and provide a variety of optimizations in file transfer, such as large and small file collaboration, small file packaging and other purposes.
+File transfer capability: Mainly for file transfer, and provide a variety of optimizations in file transfer, such as large and small file collaboration, small file packaging and other purposes.
 
 Streaming capability: Mainly for video streaming and audio streaming scenarios, it implements three competitive solutions, including semi-reliable transmission, adaptive bandwidth evaluation bitrate, and dynamic caching for weak network detection, to optimize user experience.
 
