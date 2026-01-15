@@ -14,7 +14,18 @@
 declare_args() {
   t2stack_feature_vtp = true
   t2stack_feature_dfile = true
-  t2stack_feature_dmsg = true
   t2stack_feature_coap = true
+  t2stack_feature_inner_coap = true
+  t2stack_feature_deps_wifi = true
+}
+
+if (defined(global_parts_info) &&
+    !defined(global_parts_info.communication_wifi)) {
+  t2stack_feature_deps_wifi = false
+}
+
+if (!t2stack_feature_coap || !t2stack_feature_deps_wifi) {
+  t2stack_feature_inner_coap = false
+} else {
   t2stack_feature_inner_coap = true
 }
