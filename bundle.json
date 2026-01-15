@@ -22,9 +22,6 @@
     "features": [
       "t2stack_feature_vtp",
       "t2stack_feature_dfile",
-      "t2stack_feature_dmsg",
-      "t2stack_feature_dnet",
-      "t2stack_feature_linkfinder",
       "t2stack_feature_coap"
     ],
     "rom": "3000KB",
