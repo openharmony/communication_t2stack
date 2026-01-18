@@ -15,7 +15,7 @@ import("//foundation/communication/dsoftbus/dsoftbus.gni")
 
 NSTACKX_ROOT = "//foundation/communication/dsoftbus/components/nstackx"
 cflags = [ "-DENABLE_DFINDER_HILOG" ]
-if (dsoftbus_standard_feature_ifname_prefix) {
+if (dsoftbus_feature_ifname_prefix) {
   cflags += [ "-DETH_DEV_NAME_PRE=\"br\"" ]
 }
 if (defined(ohos_lite)) {
@@ -136,6 +136,7 @@ if (defined(ohos_lite)) {
       "platform/unix",
       "$NSTACKX_ROOT/nstackx_core/",
       "//utils/native/base/include/",
+      "//third_party/bounds_checking_function/include",
       "//base/hiviewdfx/hilog/interfaces/native/innerkits/",
     ]
     sources = [
@@ -156,12 +157,12 @@ if (defined(ohos_lite)) {
     ]
 
     deps = [
+      "//third_party/bounds_checking_function:libsec_shared",
       "//third_party/mbedtls",
-      "//utils/native/base:utilsecurec_shared",
     ]
     external_deps = [ "hiviewdfx_hilog_native:libhilog" ]
     public_configs = [ ":nstackx_util_header" ]
-    part_name = "dsoftbus_standard"
+    part_name = "dsoftbus"
     subsystem_name = "communication"
   }
 }
