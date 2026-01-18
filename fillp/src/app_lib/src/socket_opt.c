@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -113,7 +113,6 @@ FILLP_INT SockGetSockOpt(
     if ((optLen == FILLP_NULL_PTR) || (optVal == FILLP_NULL_PTR)) {
         (void)SYS_ARCH_RWSEM_RDPOST(&sock->sockConnSem);
         SET_ERRNO(FILLP_EFAULT);
-        FILLP_LOGERR("SockGetSockOpt: optLen or optVal NULL");
         return -1;
     }
 
@@ -294,24 +293,24 @@ FILLP_INT SockSetSockOpt(
 {
     struct FtSocket *sock = FILLP_NULL_PTR;
     struct SockOsSocket *osSock = FILLP_NULL_PTR;
-    FillpErrorType err = -1;
+    FillpErrorType err;
 
     FILLP_LOGINF("SockSetSockOpt: sock = %d", sockIndex);
 
     if (optVal == FILLP_NULL_PTR) {
         SET_ERRNO(FILLP_EFAULT);
-        return err;
+        return -1;
     }
 
     if ((level == SOL_SOCKET) && ((optName == SO_SNDBUF) || (optName == SO_RCVBUF))) {
         FILLP_LOGERR("SockSetSockOpt: sock = %d invalid param optName=%d", sockIndex, optName);
         SET_ERRNO(FILLP_EOPNOTSUPP);
-        return err;
+        return -1;
     }
 
     sock = SockApiGetAndCheck(sockIndex);
     if (sock == FILLP_NULL_PTR) {
-        return err;
+        return -1;
     }
 
     if (level == IPPROTO_FILLP) {
@@ -322,6 +321,7 @@ FILLP_INT SockSetSockOpt(
             err = osSock->ioSock->ops->setsockopt(osSock->ioSock, level, optName, optVal, optLen);
         } else {
             SET_ERRNO(FILLP_EINVAL);
+            err = -1;
         }
     }
 

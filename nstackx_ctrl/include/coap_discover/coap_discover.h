@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023 Huawei Device Co., Ltd.
+ * Copyright (C) 2021 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -15,12 +15,8 @@
 
 #ifndef COAP_DISCOVER_H
 #define COAP_DISCOVER_H
-#include <coap3/coap.h>
+#include <net.h>
 #include "nstackx_common.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #define COAP_MODULE_NAME_TYPE 0x01
 #define COAP_DEVICE_ID_TYPE 0x02
@@ -31,72 +27,38 @@ extern "C" {
 #define SERVER_TYPE_USB 2
 
 #define INVALID_TYPE 255
-#pragma pack(1)
+
 typedef struct {
     uint8_t type;
     uint16_t len; /* must be a positive integer */
     uint8_t value[0];
-} CoapMsgUnit;
-#pragma pack()
-struct coap_session_t;
+} __attribute__((packed)) CoapMsgUnit;
 
+struct coap_session_t;
+struct DeviceInfo;
 typedef struct {
-    const char *deviceId;
-    const char *moduleName;
-    const uint8_t *data;
+    char deviceId[NSTACKX_MAX_DEVICE_ID_LEN];
+    char moduleName[NSTACKX_MAX_MODULE_NAME_LEN];
+    char p2pAddr[NSTACKX_MAX_IP_STRING_LEN];
+    uint8_t *data;
     uint32_t len;
     uint8_t type;
-    int32_t err;
-    sem_t wait;
 } MsgCtx;
-
-typedef struct CoapRequest {
-    uint8_t type;
-    uint8_t code;
-    const char *remoteUrl;
-    uint8_t *token;
-    size_t tokenLength;
-    char *data;
-    size_t dataLength;
-} CoapRequest;
-
-typedef enum {
-    COAP_BROADCAST_TYPE_DEFAULT = 0,
-    COAP_BROADCAST_TYPE_USER = 1,
-    COAP_BROADCAST_TYPE_USER_DEFINE_INTERVAL = 2
-} CoapBroadcastType;
-
-#ifdef DFINDER_SUPPORT_SET_SCREEN_STATUS
-void SetScreenStatus(bool isScreenOn);
-#endif
 
 void CoapServiceDiscoverInner(uint8_t userRequest);
 void CoapServiceDiscoverInnerAn(uint8_t userRequest);
-void CoapServiceDiscoverInnerConfigurable(uint8_t userRequest);
 void CoapServiceDiscoverStopInner(void);
 uint8_t CoapDiscoverRequestOngoing(void);
-
-void CoapServiceNotification(void);
-
-int32_t CoapInitResources(coap_context_t *ctx);
-
+void CoapInitResources(coap_context_t *ctx, uint8_t isNeedInitCtx);
 int32_t CoapDiscoverInit(EpollDesc epollfd);
 void CoapDiscoverDeinit(void);
-
-int32_t CoapSendServiceMsg(MsgCtx *msgCtx, const char *remoteIpStr, const struct in_addr *remoteIp);
+void CoapDestroyCtx(uint8_t serverType);
+int32_t CoapSendServiceMsg(MsgCtx *msgCtx, struct DeviceInfo *deviceInfo);
+int32_t CoapSendServiceMsgWithDefiniteTargetIp(MsgCtx *msgCtx, struct DeviceInfo *deviceInfo);
+coap_context_t *GetContext(uint8_t serverType);
 void CoapSubscribeModuleInner(uint8_t isSubscribe);
 void CoapUnsubscribeModuleInner(uint8_t isUnsubscribe);
 void CoapInitSubscribeModuleInner(void);
 void ResetCoapDiscoverTaskCount(uint8_t isBusy);
-void SetCoapDiscoverType(CoapBroadcastType type);
-void SetCoapUserDiscoverInfo(uint32_t advCount, uint32_t advDuration);
-int32_t SetCoapDiscConfig(const DFinderDiscConfig *discConfig);
-void SendDiscoveryRsp(const NSTACKX_ResponseSettings *responseSettings);
-int32_t LocalizeNotificationInterval(const uint16_t *intervals, const uint8_t intervalLen);
-void CoapServiceNotificationStop(void);
-
-#ifdef __cplusplus
-}
-#endif
-
+uint8_t GetActualType(const uint8_t type, const char *dstIp);
 #endif /* #ifndef COAP_DISCOVER_H */

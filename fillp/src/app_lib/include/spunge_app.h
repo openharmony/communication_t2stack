@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -15,6 +15,9 @@
 
 #ifndef SPUNGE_APP_H
 #define SPUNGE_APP_H
+#include "sockets.h"
+#include "queue.h"
+#include "hlist.h"
 #include "fillpinc.h"
 
 #ifdef __cplusplus
@@ -36,4 +39,4 @@ void SpungeDelEpInstFromFtSocket(struct FtSocket *sock, FILLP_INT epFd);
 }
 #endif
 
-#endif // SPUNGE_APP_H
+#endif

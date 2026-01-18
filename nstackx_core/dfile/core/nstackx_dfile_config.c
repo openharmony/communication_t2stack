@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2021 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -19,7 +19,7 @@
 
 #include "nstackx_dfile_config.h"
 #include "nstackx_dfile_session.h"
-#include "nstackx_dfile_log.h"
+#include "nstackx_log.h"
 #include "nstackx_error.h"
 #include "nstackx_dfile.h"
 #include "nstackx_socket.h"
@@ -40,14 +40,6 @@ BindInfo g_recver8CoreList[DFILE_BIND_TYPE_INDEX_MAX][DFILE_MAX_THREAD_NUM] = {
     {{0, 0x40}, {0, 0x80}, {0, 0xF0}, {0, 0x00}, {0, 0x00}, {0, 0x00}, {0, 0x20}, {0, 0x10}}, /* highspeed */
     {{0, 0x00}, {0, 0x00}, {0, 0x00}, {0, 0x00}, {0, 0x00}, {0, 0x00}, {0, 0x20}, {0, 0x00}}, /* lowspeed */
 };
-
-enum {
-    NO_CHECK = 0,
-    CHECKED_NOT_SUPPORT,
-    CHECKED_SUPPORT
-};
-
-static uint8_t g_aesInChecked = NO_CHECK;
 
 void SetTidToBindInfo(const DFileSession *session, uint32_t pos)
 {
@@ -147,12 +139,12 @@ static void ConfigDFileTransWlan(DFileTransConfig *transConfig)
 int32_t ConfigDFileTrans(uint16_t connType, DFileTransConfig *transConfig)
 {
     if (transConfig == NULL) {
-        DFILE_LOGE(TAG, "Invalid parameter");
+        LOGE(TAG, "Invalid parameter");
         return NSTACKX_EINVAL;
     }
 
     if (CheckConnType(connType) != NSTACKX_EOK) {
-        DFILE_LOGE(TAG, "Invalid connection type %u", connType);
+        LOGE(TAG, "Invalid connection type %u", connType);
         return NSTACKX_EINVAL;
     }
 
@@ -172,89 +164,37 @@ void SetTcpKeepAlive(SocketDesc fd)
 
     optval = 1;
     if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (void *)(&optval), sizeof(optval)) != 0) {
-        DFILE_LOGI(TAG, "set KEEPALIVE failed");
+        LOGI(TAG, "set KEEPALIVE failed");
     } else {
-        DFILE_LOGI(TAG, "set KEEPALIVE = %d success", optval);
+        LOGI(TAG, "set KEEPALIVE = %d success", optval);
     }
 
     optval = KEEP_ALIVE_IDLE;
     if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE, (void *)(&optval), sizeof(optval)) != 0) {
-        DFILE_LOGI(TAG, "set TCP_KEEPIDLE failed");
+        LOGI(TAG, "set TCP_KEEPIDLE failed");
     } else {
-        DFILE_LOGI(TAG, "set TCP_KEEPIDLE = %d success", optval);
+        LOGI(TAG, "set TCP_KEEPIDLE = %d success", optval);
     }
 
     optval = KEEP_ALIVE_CNT;
     if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT, (void *)(&optval), sizeof(optval)) != 0) {
-        DFILE_LOGI(TAG, "set TCP_KEEPCNT failed");
+        LOGI(TAG, "set TCP_KEEPCNT failed");
     } else {
-        DFILE_LOGI(TAG, "set TCP_KEEPCNT = %d success", optval);
+        LOGI(TAG, "set TCP_KEEPCNT = %d success", optval);
     }
 
     optval = KEEP_ALIVE_INTERVAL;
     if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL, (void *)(&optval), sizeof(optval)) != 0) {
-        DFILE_LOGI(TAG, "set TCP_KEEPINTVL failed");
+        LOGI(TAG, "set TCP_KEEPINTVL failed");
     } else {
-        DFILE_LOGI(TAG, "set TCP_KEEPINTVL = %d success", optval);
+        LOGI(TAG, "set TCP_KEEPINTVL = %d success", optval);
     }
 
     optval = TCP_USER_TIMEOUT_VALUE;
     if (setsockopt(fd, IPPROTO_TCP, TCP_USER_TIMEOUT, (void *)(&optval), sizeof(optval)) != 0) {
-        DFILE_LOGI(TAG, "set TCP_USER_TIMEOUT option error");
+        LOGI(TAG, "set TCP_USER_TIMEOUT option error");
     } else {
-        DFILE_LOGI(TAG, "set TCP_USER_TIMEOUT option success time:%d", optval);
+        LOGI(TAG, "set TCP_USER_TIMEOUT option success time:%d", optval);
     }
 #endif
-}
-
-static bool CheckIsSupportHardwareAesNi(void)
-{
-    if (g_aesInChecked == NO_CHECK) {
-        g_aesInChecked = IsSupportHardwareAesNi() ? CHECKED_SUPPORT : CHECKED_NOT_SUPPORT;
-        DFILE_LOGI(TAG, "g_aesInChecked is set as %hhu", g_aesInChecked);
-    }
-    return g_aesInChecked == CHECKED_SUPPORT;
-}
-
-void DFileGetCipherCaps(DFileSession *session, SettingFrame *settingFramePara)
-{
-    if (CapsChaCha(session) && QueryCipherSupportByName(CHACHA20_POLY1305_NAME)) {
-        session->cipherCapability |= NSTACKX_CIPHER_CHACHA;
-        DFILE_LOGI(TAG, "local cipher support %s.", CHACHA20_POLY1305_NAME);
-    } else {
-        session->cipherCapability &= ~NSTACKX_CIPHER_CHACHA;
-        DFILE_LOGI(TAG, "local cipher no support %s, CapsChaCha is %hhu.", CHACHA20_POLY1305_NAME, CapsChaCha(session));
-    }
-
-    bool ret = CheckIsSupportHardwareAesNi();
-    if (ret) {
-        session->cipherCapability |= NSTACKX_CIPHER_AES_NI;
-    }
-    settingFramePara->cipherCapability = session->cipherCapability;
-    DFILE_LOGI(TAG, "local cipher AES_NI state is %s", ret ? "true" : "false");
-}
-
-void DFileChooseCipherType(SettingFrame *hostSettingFrame, DFileSession *session)
-{
-    if (session->fileManager->keyLen != CHACHA20_KEY_LENGTH) {
-        session->cipherCapability &= ~NSTACKX_CIPHER_CHACHA;
-        DFILE_LOGI(TAG, "opposite replies no use chacha cipher");
-        return;
-    }
-
-    uint8_t isRemoteSupportChacha = ((hostSettingFrame->cipherCapability & NSTACKX_CIPHER_CHACHA) != 0);
-    uint8_t isRemoteSupportAesNi = ((hostSettingFrame->cipherCapability & NSTACKX_CIPHER_AES_NI) != 0);
-    uint8_t isUseMtp = NSTACKX_FALSE;
-#ifdef DFILE_ADAPT_MTP
-    isUseMtp = session->useMtpFlag;
-#endif
-    uint8_t isLocalUseChacha = QueryCipherSupportByName(CHACHA20_POLY1305_NAME) && !isUseMtp;
-    bool isLocalSupportAesNi = CheckIsSupportHardwareAesNi();
-    if (isRemoteSupportChacha && isLocalUseChacha && !(isRemoteSupportAesNi && isLocalSupportAesNi)) {
-        session->cipherCapability |= NSTACKX_CIPHER_CHACHA;
-    } else {
-        session->cipherCapability &= ~NSTACKX_CIPHER_CHACHA;
-    }
-
-    DFILE_LOGI(TAG, "opposite replies %s use chacha cipher", CapsChaCha(session) ? "" : "no");
 }

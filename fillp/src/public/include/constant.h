@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -20,8 +20,8 @@
 extern "C" {
 #endif /* __cplusplus */
 
-#define FILLP_RECV_PKT_LOSS_H_PERCISION 100 /* receive packet loss period */
-#define FILLP_RECV_PKT_LOSS_MAX 100         /* receive packet loss period */
+#define FILLP_RECV_PKT_LOSS_H_PERCISION 100 /* recieve packet loss period */
+#define FILLP_RECV_PKT_LOSS_MAX 100         /* recieve packet loss period */
 #define FILLP_MAX_INT_VALUE 0x7fffffff      /* max value of integer */
 #define FILLP_PERSENT_NUM 100
 

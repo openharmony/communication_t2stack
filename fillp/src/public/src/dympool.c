@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -23,7 +23,7 @@ DympoolType *DympCreatePool(int initSize, int maxSize, int itemSize, FILLP_BOOL 
 {
     DympoolType *pool = FILLP_NULL_PTR;
     if ((initSize <= 0) || (maxSize <= 0) || (itemSize <= 0)) {
-        FILLP_LOGERR("Error to create pool initSize:%d,maxSize:%d,itemSize:%d", initSize, maxSize, itemSize);
+        FILLP_LOGERR("Error to crate pool initSize:%d,maxSize:%d,itemSize:%d", initSize, maxSize, itemSize);
         return FILLP_NULL_PTR;
     }
 
@@ -51,7 +51,7 @@ DympoolType *DympCreatePool(int initSize, int maxSize, int itemSize, FILLP_BOOL 
 
     pool->currentSize = DympAskMoreMemory(pool, initSize, FILLP_FALSE);
     if (pool->currentSize <= 0) {
-        FILLP_LOGERR("Initial memory fail");
+        FILLP_LOGERR("Inital memory fail");
         goto CREATE_FAIL;
     }
 
@@ -105,6 +105,8 @@ void DympDestroyPool(DympoolType *pool)
     }
 
     SpungeFree(pool, SPUNGE_ALLOC_TYPE_MALLOC);
+
+    return;
 }
 
 void DympSetConsSafe(DympoolType *pool, FILLP_BOOL safe)
@@ -162,7 +164,7 @@ static int DympExpandMemory(DympoolType *pool, int stepSizeWork)
     }
 
     pool->currentSize += itemCount;
-    if (itemCount != 0) {
+    if (itemCount) {
         mem->itemCnt = itemCount;
         FILLP_LOGINF("stepSize:%d, Current pool size:%d", itemCount, pool->currentSize);
     } else {

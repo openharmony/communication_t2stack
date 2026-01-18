@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2021 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -58,8 +58,8 @@ static int32_t GetScanInfo(struct nl_msg *msg, void *arg)
 {
     struct genlmsghdr *gnlh = nlmsg_data(nlmsg_hdr(msg));
 
-    struct nlattr *tb[NL80211_ATTR_MAX + 1] = {0};
-    struct nlattr *bss[NL80211_BSS_MAX + 1] = {0};
+    struct nlattr *tb[NL80211_ATTR_MAX + 1] = { 0 };
+    struct nlattr *bss[NL80211_BSS_MAX + 1] = { 0 };
     struct nla_policy bssPolicy[NL80211_BSS_MAX + 1] = {
         [NL80211_BSS_FREQUENCY] = { .type = NLA_U32 },
         [NL80211_BSS_BSSID] = { },
@@ -102,7 +102,7 @@ static inline uint32_t ResolveBitrateInfoInner(struct nlattr *rInfo[])
 
 static int32_t ResolveBitrateInfo(struct nlattr *bitrateAttr, WifiRateInfo *rateInfo)
 {
-    struct nlattr *rInfo[NL80211_RATE_INFO_MAX + 1] = {0};
+    struct nlattr *rInfo[NL80211_RATE_INFO_MAX + 1] = { 0 };
     static struct nla_policy ratePolicy[NL80211_RATE_INFO_MAX + 1] = {
         [NL80211_RATE_INFO_BITRATE] = { .type = NLA_U16 },
         [NL80211_RATE_INFO_BITRATE32] = { .type = NLA_U32 },
@@ -155,10 +155,10 @@ static void GetStationInfoRate(WifiStationInfo *wifiStationInfo, struct nlattr *
 
 static int32_t GetStationInfo(struct nl_msg *msg, void *arg)
 {
-    struct nlattr *tb[NL80211_ATTR_MAX + 1] = {0};
+    struct nlattr *tb[NL80211_ATTR_MAX + 1] = { 0 };
 
     struct genlmsghdr *gnlh = nlmsg_data(nlmsg_hdr(msg));
-    struct nlattr *sinfo[NL80211_STA_INFO_MAX + 1] = {0};
+    struct nlattr *sinfo[NL80211_STA_INFO_MAX + 1] = { 0 };
     static struct nla_policy statsPolicy[NL80211_STA_INFO_MAX + 1] = {
         [NL80211_STA_INFO_SIGNAL] = { .type = NLA_U8 },
         [NL80211_STA_INFO_RX_BITRATE] = { .type = NLA_NESTED },
@@ -248,6 +248,8 @@ int32_t GetStationHandler(struct nl_msg *msg, HandleParam *handleParam)
 {
     NLA_PUT(msg, NL80211_ATTR_MAC, ETH_ALEN, handleParam->mac);
     return 0;
+nla_put_failure:
+    return -ENOBUFS;
 }
 
 int32_t GetWifiStaInfo(const NLDevInfo nlDevInfo, WifiStationInfo *wifiStationInfo)

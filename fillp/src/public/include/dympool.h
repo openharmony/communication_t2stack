@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -18,6 +18,7 @@
 
 #include "hlist.h"
 #include "queue.h"
+#include "spunge_mem.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -49,7 +50,7 @@ typedef struct DympoolItemOperaCb {
 } DympoolItemOperaCbSt;
 
 typedef struct DympoolTypeStrunct {
-    FillpQueue *mp;        /* Queue of memory alloc */
+    FillpQueue *mp;        /* Qeueue of memory alloc */
     int itemSize;          /* Size of every memory item size */
     int maxSize;           /* Max memory item size,and althrough it is the max size of queue */
     int currentSize;       /* Current size of memory alloced */

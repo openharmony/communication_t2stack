@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -16,6 +16,12 @@
 #ifndef FILLP_H
 #define FILLP_H
 
+#include "fillpinc.h"
+#include "fillp_os.h"
+#include "hlist.h"
+#include "mem_pool.h"
+#include "opt.h"
+#include "skiplist.h"
 #include "fillp_pcb.h"
 #include "fillp_cookie.h"
 
@@ -267,7 +273,6 @@ struct FillpConnReqAckClient {
 #define FILLP_ONE_EXT_PARA_LENGTH 2
 
 enum FillpPacketExt {
-    FILLP_PKT_EXT_START,
     FILLP_PKT_EXT_CONNECT_CONFIRM_CARRY_RTT = 1,
     FILLP_PKT_EXT_CONNECT_CONFIRM_CARRY_PKT_SIZE,
     FILLP_PKT_EXT_CONNECT_CARRY_CHARACTER,
@@ -280,7 +285,7 @@ struct FillpPktConnConfirm {
     FILLP_UINT16 tagCookie;    /* for align to 8 bytes */
     FILLP_UINT16 cookieLength; /* client send to server cache , same as server recv cache */
     FillpCookieContent cookieContent;
-    struct sockaddr_in6 remoteAddr; /* 28bytes */ /* Not used, kept because of backward compatibility */
+    struct sockaddr_in6 remoteAddr; /* 28bytes */ /* Not used, kept because of backward compatiblity */
 };
 
 struct FillpPktConnConfirmAck {
@@ -340,7 +345,6 @@ typedef enum InnerfillpClientfourhandshakestateEnum {
 
 #define FILLP_HEADER_SET_PKT_TYPE(flag, type) ((flag) |= ((FILLP_UINT16)((type)&0x0f) << 8))
 #define FILLP_PKT_GET_TYPE(flag) (((flag)&0x0f00) >> 8)
-#define FILLP_PKT_GET_FLAG(flag) ((flag) & 0x00ff)
 
 #define FILLP_HEADER_SET_PROTOCOL_VERSION(flag, ver) ((flag) |= ((FILLP_UINT16)((ver)&0x0f) << 12))
 #define FILLP_PKT_GET_PROTCOL_VERSION(flag) (((flag)&0xf000) >> 12)
@@ -378,8 +382,7 @@ typedef enum InnerfillpClientfourhandshakestateEnum {
 #define FILLP_PKT_DISCONN_MSG_FLAG_IS_ACK(_flag) ((_flag)&FILLP_PKT_DISCONN_MSG_FLAG_ACK)
 #define FILLP_PKT_DISCONN_MSG_FLAG_IS_VER(_flag) ((_flag) & FILLP_PKT_DISCONN_MSG_FLAG_VER)
 
-#define IGNORE_OVERFLOW __attribute__((no_sanitize("unsigned-integer-overflow")))
-IGNORE_OVERFLOW static __inline FILLP_INT FillpNumIsbigger(FILLP_UINT32 value1, FILLP_UINT32 value2)
+static __inline FILLP_INT FillpNumIsbigger(FILLP_UINT32 value1, FILLP_UINT32 value2)
 {
     return ((FILLP_INT32)(value1 - value2)) > 0;
 }
@@ -428,10 +431,6 @@ void FillpConnConnectionEstFailure(struct FillpPcb *pcb, FILLP_CONST struct NetB
 void FillpConnConfirmAckInput(struct FillpPcb *pcb, FILLP_CONST struct NetBuf *p);
 
 void FillpFinInput(struct FillpPcb *pcb, FILLP_CONST struct NetBuf *p, FILLP_BOOL *pcbFreed);
-
-struct FtNetconn;
-
-FILLP_INT32 FillpDecodeExtPara(FILLP_CONST FILLP_UCHAR *buf, FILLP_INT bufLen, struct FtNetconn *conn);
 
 #ifdef __cplusplus
 }

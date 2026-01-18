@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -13,9 +13,7 @@
  * limitations under the License.
  */
 
-#include "lf_ring.h"
-#include "queue.h"
-#include "log.h"
+#include "mem_pool.h"
 #include "fillp.h"
 #include "dympool.h"
 #include "fillp_buf_item.h"

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2021 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -38,8 +38,8 @@ extern "C" {
 
 /*
  * Description: Out of memory.
- * Solution: 1. Verify whether the memory has exceeded the threshold.
- *           2. Release the memory and try again.
+ * Solution: 1. Verify that the memory usage exceeds the threshold.
+ *           2. Release the memory and try again
  */
 #define NSTACKX_ENOMEM (-5)
 #define NSTACKX_EEXIST (-6) /* Resource already exist */
@@ -80,14 +80,6 @@ extern "C" {
 #define NSTACKX_NOTSUPPORT (-12)
 
 #define NSTACKX_PEER_CLOSE (-13)
-
-#define NSTACKX_EPERM (-14)
-
-#define NSTACKX_EDQUOT (-15)
-
-#define NSTACKX_ENETDOWN (-16)
-
-#define NSTACKX_ENOENT (-17)
 #ifdef __cplusplus
 }
 #endif

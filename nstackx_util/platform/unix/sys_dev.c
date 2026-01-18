@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2021 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -30,10 +30,10 @@ static int32_t GetConnectionTypeByDevName(const char *devName, uint32_t devNameL
     if (devNameLen >= p2pNameLen && memcmp(devName, P2P_DEV_NAME_PRE, p2pNameLen) == 0) {
         *connectType = CONNECT_TYPE_P2P;
         ret = NSTACKX_EOK;
-        LOGI(TAG, "connType is P2P(%hu)", *connectType);
+        LOGI(TAG, "connType is P2P(%u)", *connectType);
     } else if (devNameLen >= wlanNameLen && memcmp(devName, WLAN_DEV_NAME_PRE, wlanNameLen) == 0) {
         *connectType = CONNECT_TYPE_WLAN;
-        LOGI(TAG, "connType is WLAN(%hu)", *connectType);
+        LOGI(TAG, "connType is WLAN(%u)", *connectType);
         ret = NSTACKX_EOK;
     }
     return ret;
@@ -194,19 +194,15 @@ static int32_t BindToDeviceInner(int32_t sockfd, const struct ifreq *ifBinding)
 
 /*
  * If localAddr isn't NULL, bind to interface correspond to ip,
- * otherwise, bind to interface which is chosen by strategy.
+ * otherwise, bind to interface which is choosed by strategy.
  */
 int32_t BindToDevice(SocketDesc sockfd, const struct sockaddr_in *localAddr)
 {
     struct ifreq buf[INTERFACE_MAX];
     struct ifconf ifc;
     struct ifreq *ifBinding = NULL;
-
-#ifndef DFINDER_SUPPORT_MULTI_NIF
     uint32_t ethNameLen = (uint32_t)strlen(ETH_DEV_NAME_PRE);
     uint32_t wlanNameLen = (uint32_t)strlen(WLAN_DEV_NAME_PRE);
-#endif
-
     int32_t fd = GetInterfaceList(&ifc, buf, sizeof(buf));
     if (fd < 0) {
         return NSTACKX_EFAILED;
@@ -214,11 +210,10 @@ int32_t BindToDevice(SocketDesc sockfd, const struct sockaddr_in *localAddr)
     int32_t ifreqLen = (int32_t)sizeof(struct ifreq);
     int32_t interfaceNum = (int32_t)(ifc.ifc_len / ifreqLen);
     for (int32_t i = 0; i < interfaceNum && i < INTERFACE_MAX; i++) {
-#ifndef DFINDER_SUPPORT_MULTI_NIF
+        LOGI(TAG, "device name: %s", buf[i].ifr_name);
         if (strlen(buf[i].ifr_name) < ethNameLen && strlen(buf[i].ifr_name) < wlanNameLen) {
             continue;
         }
-#endif
         /* get IP of this interface */
         int32_t state = GetInterfaceIP(fd, &buf[i]);
         if (state == NSTACKX_EFAILED) {
@@ -233,7 +228,6 @@ int32_t BindToDevice(SocketDesc sockfd, const struct sockaddr_in *localAddr)
                 break;
             }
         } else {
-#ifndef DFINDER_SUPPORT_MULTI_NIF
             /* strategy: ethernet have higher priority */
             if (memcmp(buf[i].ifr_name, ETH_DEV_NAME_PRE, ethNameLen) == 0) {
                 ifBinding = &buf[i];
@@ -241,7 +235,6 @@ int32_t BindToDevice(SocketDesc sockfd, const struct sockaddr_in *localAddr)
             } else if (memcmp(buf[i].ifr_name, WLAN_DEV_NAME_PRE, wlanNameLen) == 0) {
                 ifBinding = &buf[i];
             }
-#endif
         }
     }
     CloseSocketInner(fd);
@@ -350,7 +343,7 @@ int32_t GetTargetInterface(const struct sockaddr_in *dstAddr, struct ifreq *loca
             continue;
         }
         netMask = ((struct sockaddr_in *)&(buf[i].ifr_netmask))->sin_addr.s_addr;
-        /* if localIp and dstIp are in the same LAN, fetch the interface name of this localIp and return */
+        /* if localIp and dstIp are in the same LAN, fetch the interface name of thie localIp and return */
         if ((dstAddr->sin_addr.s_addr & netMask) == (localIp & netMask)) {
             if (strncpy_s(localDev->ifr_ifrn.ifrn_name, IFNAMSIZ, buf[i].ifr_name, strlen(buf[i].ifr_name)) != EOK) {
                 LOGE(TAG, "ifreq name copy failed");

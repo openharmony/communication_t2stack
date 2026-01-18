@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -83,7 +83,7 @@ extern "C" {
 #define FILLP_DEFAULT_NACK_RETRY_LEN 120
 #define FILLP_FC_MULTI_ADJUST_CONST 1.25
 #define FILLP_FLOW_CONTROL_MULTI_NUM_STEP 0.0392
-#define FILLP_FC_NINETY_PERCENT_VAL(value) ((value) * 0.95)
+#define FILLP_FC_NINTY_PERCENT_VAL(value) ((value) * 0.95)
 
 /* GlobalAppResource structure default values start */
 #ifdef FILLP_LINUX

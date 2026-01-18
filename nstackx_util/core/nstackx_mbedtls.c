@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2021 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -24,18 +24,6 @@
 static pthread_mutex_t g_randomLock = PTHREAD_MUTEX_INITIALIZER;
 static mbedtls_entropy_context g_mbedtlsEntropy;
 static mbedtls_ctr_drbg_context g_mbedtlsCtrDrbg;
-
-MBEDTLS_CTX *CreateCryptCtx(void)
-{
-    LOGI(TAG, "mbedtls CreateCryptCtx");
-    return &g_mbedtlsCtrDrbg;
-}
-
-void ClearCryptCtx(MBEDTLS_CTX *ctx)
-{
-    (void)ctx;
-    return;
-}
 
 static int32_t MbedtlsGetRandomSeed(void)
 {
@@ -67,11 +55,7 @@ int32_t GetRandBytes(uint8_t *buf, uint32_t len)
         return NSTACKX_EFAILED;
     }
     if (MbedtlsGetRandomSeed() != NSTACKX_EOK) {
-        LOGE(TAG, "MbedtlsGetRandomSeed error");
-        if (pthread_mutex_unlock(&g_randomLock) != 0) {
-            LOGE(TAG, "unlock failed");
-        }
-        return NSTACKX_EFAILED;
+        ret = NSTACKX_EFAILED;
     }
 
     ret = mbedtls_ctr_drbg_random(&g_mbedtlsCtrDrbg, buf, len);
@@ -128,39 +112,6 @@ static uint32_t MbedAesGcmEncrypt(const CryptPara *cryptPara, const uint8_t *inB
     return (inLen + GCM_ADDED_LEN);
 }
 
-static uint32_t MbedChaChaEncrypt(const CryptPara *cryptPara, const uint8_t *inBuf,
-    uint32_t inLen, uint8_t *outBuf, uint32_t outLen)
-{
-    unsigned char tagBuf[GCM_TAG_LENGTH] = {0};
-    mbedtls_chachapoly_context ctx;
-    mbedtls_chachapoly_init(&ctx);
-    int ret = mbedtls_chachapoly_setkey(&ctx, cryptPara->key);
-    if (ret != 0) {
-        LOGE(TAG, "set key fail, ret %d", ret);
-        mbedtls_chachapoly_free(&ctx);
-        return 0;
-    }
-    ret = mbedtls_chachapoly_encrypt_and_tag(&ctx, inLen, cryptPara->iv,
-        cryptPara->aad, cryptPara->aadLen, inBuf, outBuf, tagBuf);
-    if (ret != 0) {
-        LOGE(TAG, "encrypt data fail, ret %d", ret);
-        mbedtls_chachapoly_free(&ctx);
-        return 0;
-    }
-
-    if (memcpy_s(outBuf + inLen, outLen - inLen, tagBuf, GCM_TAG_LENGTH) != 0) {
-        mbedtls_chachapoly_free(&ctx);
-        return 0;
-    }
-
-    if (memcpy_s(outBuf + inLen + GCM_TAG_LENGTH, GCM_IV_LENGTH, cryptPara->iv, GCM_IV_LENGTH) != 0) {
-        mbedtls_chachapoly_free(&ctx);
-        return 0;
-    }
-
-    mbedtls_chachapoly_free(&ctx);
-    return (inLen + GCM_ADDED_LEN);
-}
 
 uint32_t AesGcmEncrypt(const uint8_t *inBuf, uint32_t inLen, CryptPara *cryptPara, uint8_t *outBuf,
                        uint32_t outLen)
@@ -173,9 +124,6 @@ uint32_t AesGcmEncrypt(const uint8_t *inBuf, uint32_t inLen, CryptPara *cryptPar
     if (GetRandBytes(cryptPara->iv, cryptPara->ivLen) != NSTACKX_EOK) {
         LOGE(TAG, "get rand iv failed");
         return 0;
-    }
-    if (cryptPara->cipherType == CIPHER_CHACHA) {
-        return MbedChaChaEncrypt(cryptPara, inBuf, inLen, outBuf, outLen);
     }
     return MbedAesGcmEncrypt(cryptPara, inBuf, inLen, outBuf, outLen);
 }
@@ -212,30 +160,6 @@ static uint32_t MbedAesGcmDecrypt(const CryptPara *cryptPara, uint8_t *inBuf, ui
     return actualPlainLen;
 }
 
-static uint32_t MbedChaChaDecrypt(const CryptPara *cryptPara, uint8_t *inBuf, uint32_t inLen,
-    uint8_t *outBuf, uint32_t outLen)
-{
-    mbedtls_chachapoly_context ctx;
-    mbedtls_chachapoly_init(&ctx);
-    int ret = mbedtls_chachapoly_setkey(&ctx, cryptPara->key);
-    if (ret != 0) {
-        LOGE(TAG, "set key fail, ret %d", ret);
-        mbedtls_chachapoly_free(&ctx);
-        return NSTACKX_EFAILED;
-    }
-
-    uint32_t actualPlainLen = inLen - GCM_ADDED_LEN;
-    ret = mbedtls_chachapoly_encrypt_and_tag(&ctx, inLen - GCM_ADDED_LEN, cryptPara->iv,
-        cryptPara->aad, cryptPara->aadLen, inBuf, outBuf, inBuf + actualPlainLen);
-    if (ret != 0) {
-        LOGE(TAG, "Decrypt mbedtls_chachapoly_encrypt_and_tag fail");
-        mbedtls_chachapoly_free(&ctx);
-        return 0;
-    }
-
-    mbedtls_chachapoly_free(&ctx);
-    return actualPlainLen;
-}
 
 uint32_t AesGcmDecrypt(uint8_t *inBuf, uint32_t inLen, CryptPara *cryptPara, uint8_t *outBuf,
                        uint32_t outLen)
@@ -249,9 +173,6 @@ uint32_t AesGcmDecrypt(uint8_t *inBuf, uint32_t inLen, CryptPara *cryptPara, uin
         return 0;
     }
 
-    if (cryptPara->cipherType == CIPHER_CHACHA) {
-        return MbedChaChaDecrypt(cryptPara, inBuf, inLen, outBuf, outLen);
-    }
     return MbedAesGcmDecrypt(cryptPara, inBuf, inLen, outBuf, outLen);
 }
 
@@ -260,21 +181,4 @@ uint8_t IsCryptoIncluded(void)
     return NSTACKX_TRUE;
 }
 
-uint8_t QueryCipherSupportByName(char *name)
-{
-    int ret = mbedtls_version_check_feature(name);
-    if (ret != NSTACKX_EFAILED) {
-        return NSTACKX_TRUE;
-    }
-
-    LOGI(TAG, "devices no support %s", name);
-    return NSTACKX_FALSE;
-}
-
-/* check CPU supports AES-NI hardware optimize */
-uint8_t IsSupportHardwareAesNi(void)
-{
-    LOGI(TAG, "no support AES-NI");
-    return NSTACKX_FALSE;
-}
-#endif // MBEDTLS_INCLUDED
+#endif

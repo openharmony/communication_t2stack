@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -32,7 +32,6 @@
 #include "spunge_message.h"
 #include "fillp_output.h"
 #include "fillp_input.h"
-#include "fillp_dfx.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -411,21 +410,18 @@ static FILLP_INT SpungeSysCallRegisted(void)
     ret = FillpValidateFuncPtr(&g_fillpOsBasicLibFun, sizeof(FillpSysLibBasicCallbackFuncSt));
     if (ret != ERR_OK) {
         SET_ERRNO(FILLP_EINVAL);
-        FILLP_LOGERR("FillpValidateFuncPtr g_fillpOsBasicLibFun failed");
         return ret;
     }
 
     ret = FillpValidateFuncPtr(&g_fillpOsSemLibFun, sizeof(FillpSysLibSemCallbackFuncSt));
     if (ret != ERR_OK) {
         SET_ERRNO(FILLP_EINVAL);
-        FILLP_LOGERR("FillpValidateFuncPtr g_fillpOsSemLibFun failed");
         return ret;
     }
 
     ret = FillpValidateFuncPtr(&g_fillpOsSocketLibFun, sizeof(FillpSysLibSockCallbackFuncSt));
     if (ret != ERR_OK) {
         SET_ERRNO(FILLP_EINVAL);
-        FILLP_LOGERR("FillpValidateFuncPtr g_fillpOsSocketLibFun failed");
         return ret;
     }
 
@@ -443,6 +439,7 @@ static void FtFreeEpollResource(void)
         DympDestroyPool(g_spunge->eventpollPool);
         g_spunge->eventpollPool = FILLP_NULL_PTR;
     }
+    return;
 }
 
 static FILLP_INT FtAllocateEpollResource(void)
@@ -482,7 +479,7 @@ static int SpungeAllocInstRes(void)
         if (err == ERR_OK) {
             continue;
         }
-        FILLP_LOGERR("SpungeInstInit failed :: Instance number :: %u", i);
+        FILLP_LOGERR("SpungeInstInit failed :: Instance number :: %u\r\n", i);
 
         /* Release instances which are created success */
         if (i > 0) {
@@ -585,11 +582,13 @@ void FtGlobalTimerInit(struct SpungeInstance *inst)
     inst->macTimerNode.interval = FILLP_KEY_REFRESH_TIME;
     FillpTimingWheelAddTimer(&inst->timingWheel, (SYS_ARCH_GET_CUR_TIME_LONGLONG() + inst->macTimerNode.interval),
         &inst->macTimerNode);
+    return;
 }
 
 static FILLP_INT SpungeCheckCallbacks(void)
 {
-    return SpungeSysCallRegisted();
+    FILLP_INT ret = SpungeSysCallRegisted();
+    return ret;
 }
 
 static FILLP_INT FtInitGlobalUdpIo(void)
@@ -628,7 +627,7 @@ static FILLP_INT FtInitGlobalSockTable(void)
 {
     g_spunge->sockTable = SpungeCreateSockTable(g_spunge->resConf.maxSockNum);
     if (g_spunge->sockTable == FILLP_NULL_PTR) {
-        FILLP_LOGERR("Malloc g_spunge->sockTable failed");
+        FILLP_LOGERR("Malloc g_spunge->sockTable failed\r\n");
         return ERR_NORES;
     }
     return ERR_OK;
@@ -646,7 +645,7 @@ static FILLP_INT FtInitGlobalNetPool(void)
     g_spunge->netPool = DympCreatePool((FILLP_INT)netPoolInitSize, (int)g_spunge->resConf.maxConnNum,
         sizeof(struct FtNetconn), FILLP_TRUE, &itemOperaCb);
     if (g_spunge->netPool == FILLP_NULL_PTR) {
-        FILLP_LOGERR("Malloc g_spunge->netPool failed");
+        FILLP_LOGERR("Malloc g_spunge->netPool failed\r\n");
         return ERR_NORES;
     }
 
@@ -755,12 +754,12 @@ FILLP_INT FtInit(void)
     }
 
     if (SpungeCheckCallbacks() != ERR_OK) {
-        FILLP_LOGERR("User has not registered system callback functions");
+        FILLP_LOGERR("User has not registered system callback functions \r\n");
         return ERR_ADP_SYS_CALLBACK_NOT_REGISTERED;
     }
 
     if (SYS_ARCH_INIT() != ERR_OK) {
-        FILLP_LOGERR("SYS_ARCH_INIT ssp failed");
+        FILLP_LOGERR("SYS_ARCH_INIT ssp failed \r\n");
         return ERR_NORES;
     }
 
@@ -829,7 +828,6 @@ static void SpungZeroInstance(void)
     InitGlobalAppResourceDefault();
     FtFreeGlobalSpunge();
     FillpSysOsDeinit();
-    FillpDfxDoEvtCbSet(FILLP_NULL_PTR, FILLP_NULL_PTR);
 
     /* Signal or release deinit sem */
     if (hasDeinitBlked) {
@@ -849,7 +847,7 @@ void SpungeDestroyInstance(struct SpungeInstance *inst)
         SpungZeroInstance();
     }
 
-    FILLP_LOGERR("Destroy finish index: %d", instIdx);
+    FILLP_LOGERR("Destory finish index: %d", instIdx);
 }
 
 static void FtDestroyInner(FILLP_INT block)
@@ -877,7 +875,7 @@ static void FtDestroyInner(FILLP_INT block)
         (void)SYS_ARCH_SEM_DESTROY(&g_resDeinitSem);
     }
 
-    FILLP_LOGERR("Destroy finished");
+    FILLP_LOGERR("Destory finished");
     return;
 }
 
@@ -916,6 +914,8 @@ void SpungeHandleMsgCycle(struct SpungeInstance *inst)
             (void)SYS_ARCH_SEM_POST(&msg->syncSem);
         }
     }
+
+    return;
 }
 
 static void SpungeLoopCheckUnsendBox(struct SpungeInstance *inst)
@@ -1048,6 +1048,7 @@ void FillpServerRecvRateAdjustment(struct SpungeInstance *inst, FILLP_UINT32 cal
         *connRecvCalLimit = inst->rateControl.recv.maxRate;
     }
     /* End of rate adjustment for Data receiving at server side */
+    return;
 }
 
 void FillpServerSendRateAdjustment(struct SpungeInstance *inst, FILLP_UINT32 calcSendTotalRate, FILLP_INT realSendConn,
@@ -1100,6 +1101,7 @@ void FillpServerSendRateAdjustment(struct SpungeInstance *inst, FILLP_UINT32 cal
     }
 
     /* End of rate adjustment for Data receiving at server side */
+    return;
 }
 
 void FillpCalculateFairness(struct SpungeInstance *inst)
@@ -1163,6 +1165,8 @@ void FillpCalculateFairness(struct SpungeInstance *inst)
         pcb->rateControl.send.curMaxRateLimitation = connSendCalLimit;
         pcb->fpcb.send.flowControl.sendRateLimit = pcb->rateControl.send.curMaxRateLimitation;
     }
+
+    return;
 }
 
 FILLP_BOOL FillpKillCore(void)
@@ -1384,6 +1388,7 @@ static void SpungeClearItemWaitTokenList(struct SpungeTokenBucke *stb)
         stb->waitPktCount = 0;
     }
     stb->fpcbCur = HLIST_FIRST(&(stb->tbFpcbLists));
+    return;
 }
 
 void SpungeCheckItemWaitTokenList(struct SpungeTokenBucke *stb)
@@ -1468,6 +1473,8 @@ void SpungeInitTokenBucket(struct SpungeInstance *inst)
     FILLP_LOGINF("limite rate:%u, timer_interval:%u, maxPktSize:%u", stb->rate, stb->tockenTimerNode.interval,
         stb->maxPktSize);
     SpungeEnableTokenTimer(stb);
+
+    return;
 }
 
 void SpungeTokenBucketAddFpcb(struct FillpPcb *fpcb)
@@ -1564,7 +1571,7 @@ static void SpungeSetThreadInfo(FILLP_CONST struct SpungeInstance *inst)
         pthread_t self;
         self = pthread_self();
         FILLP_LOGINF("FillP Core threadId:%ld", self);
-        /* thread resource will be auto recycled
+        /* thread resource will be auto recyled
            only this detach set if no other thread try to join it */
         if (pthread_detach(self)) {
             FILLP_LOGERR("Set Detach fail");
@@ -1624,6 +1631,8 @@ void SpungePushRecvdDataToStack(void *arg)
     }
 
     FillpEnableDataBurstTimer(pcb);
+
+    return;
 }
 
 #ifdef __cplusplus

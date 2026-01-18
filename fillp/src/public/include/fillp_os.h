@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -16,6 +16,7 @@
 #ifndef FILLP_OS_H
 #define FILLP_OS_H
 
+#include "fillptypes.h"
 #include "fillpcallbacks.h"
 
 #ifdef __cplusplus
@@ -73,8 +74,8 @@ extern "C" {
 typedef struct FillpLmGlobalStruct {
     FILLP_ULLONG logModules; /* Modules for which logs needs to enabled */
     FILLP_UINT8 debugLevel;  /* dbg level : FillpDebugLevel */
-    FILLP_UINT8 funcTrace;   /* Open(1) and Close(0) function trc flag */
-    FILLP_BOOL mgtMsgLog;    /* Enable/Disable the management message log */
+    FILLP_UINT8 funcTrace;   /* Open(1) and Close(0) function trc falg */
+    FILLP_UINT8 reserve;     /* for padding */
 #ifdef FILLP_64BIT_ALIGN
     FILLP_UINT8 padd;
 #endif
@@ -91,4 +92,4 @@ extern FillpLmGlobal g_fillpLmGlobal;
 }
 #endif
 
-#endif /* FILLP_OS_H */
+#endif

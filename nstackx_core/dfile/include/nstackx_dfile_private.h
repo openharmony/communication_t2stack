@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2021 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -33,10 +33,6 @@ enum {
 #define NSTACKX_INTERNAL_CAPS_NORW                   NBITS(INTERNAL_CAPS_NORW)
 #define NSTACKX_INTERNAL_CAPS_MEMLOG                 NBITS(INTERNAL_CAPS_MEMLOG)
 #define NSTACKX_INTERNAL_CAPS_RECV_FEEDBACK          NBITS(INTERNAL_CAPS_RECV_FEEDBACK)
-
-#define NSTACKX_CIPHER_AES_GCM                       NBITS(CIPHER_AES_GCM)
-#define NSTACKX_CIPHER_CHACHA                        NBITS(CIPHER_CHACHA)
-#define NSTACKX_CIPHER_AES_NI                        NBITS(CIPHER_AES_NI)
 
 #ifdef __cplusplus
 }

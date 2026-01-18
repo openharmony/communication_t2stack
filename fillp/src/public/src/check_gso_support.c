@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -36,7 +36,7 @@ FILLP_INT g_gsoSupport = FILLP_FALSE;
 static FILLP_INT SendUdpSegment(struct sockaddr_in *sa)
 {
     FILLP_INT err;
-    FILLP_CHAR ctrl[CMSG_SPACE(sizeof(FILLP_UINT16))] = {0};
+    FILLP_CHAR ctrl[CMSG_SPACE(sizeof(CFG_MSS))] = {0};
     struct msghdr mh;
     struct cmsghdr *cm = FILLP_NULL_PTR;
     FILLP_CHAR buf[CFG_MSS];

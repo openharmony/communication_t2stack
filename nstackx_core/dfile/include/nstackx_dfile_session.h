@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2021 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -17,8 +17,10 @@
 #define NSTACKX_DFILE_SESSION_H
 #include "nstackx_event.h"
 #include "nstackx_socket.h"
+#include "nstackx_file_manager.h"
 #include "nstackx_dfile_transfer.h"
 #include "nstackx_dfile_private.h"
+#include "nstackx_timer.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -149,7 +151,6 @@ struct DFileSession {
     int32_t allTaskCount;
     pthread_mutex_t backPressLock;
     uint32_t stopSendCnt[NSTACKX_MAX_CLIENT_SEND_THREAD_NUM];
-    uint32_t cipherCapability;
 };
 
 PeerInfo *CreatePeerInfo(DFileSession *session, const struct sockaddr_in *peerAddr,
@@ -234,15 +235,6 @@ static inline bool CapsRecvFeedback(const struct DFileSession *session)
 {
     return session->capsCheck & NSTACKX_INTERNAL_CAPS_RECV_FEEDBACK;
 }
-
-static inline bool CapsChaCha(const struct DFileSession *session)
-{
-    return (session->fileManager->keyLen == CHACHA20_KEY_LENGTH) &&
-        (session->cipherCapability & NSTACKX_CIPHER_CHACHA);
-}
-
-void NSTACKX_DFileAssembleFunc(void *softObj, const DFileEvent *info);
-void DFileSetEvent(void *softObj, DFileEventFunc func);
 
 #ifdef __cplusplus
 }

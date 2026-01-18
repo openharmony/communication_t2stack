@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -36,7 +36,7 @@ void SpungeShutdownSock(void *argSock, FILLP_INT how);
 void SpungeConnClosed(struct FtNetconn *conn);
 void SpungeConnConnectSuccess(void *argSock);
 void SpungeConnConnectFail(void *argSock);
-FILLP_BOOL SpungeConnCheckUnsendBoxEmpty(struct FtNetconn *conn);
+int SpungeConnCheckUnsendBoxEmpty(struct FtNetconn *conn);
 void SpungEpollClose(struct FtSocket *sock);
 
 #ifdef __cplusplus

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2021 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -16,7 +16,7 @@
 #ifndef NSTACKX_DFILE_MP_H
 #define NSTACKX_DFILE_MP_H
 #include "nstackx_dfile_session.h"
-
+#include "nstackx_dfile_transfer.h"
 #ifdef __cplusplus
 extern "C" {
 #endif

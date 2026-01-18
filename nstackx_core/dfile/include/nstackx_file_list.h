@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2021 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -16,6 +16,8 @@
 #ifndef NSTACKX_FILE_LIST_H
 #define NSTACKX_FILE_LIST_H
 
+#include <stdint.h>
+#include <stdio.h>
 #include "nstackx_dfile.h"
 #include "nstackx_list.h"
 #ifdef __cplusplus
@@ -37,18 +39,18 @@ extern "C" {
 
 typedef struct {
     uint16_t fileId;
-    uint8_t flags;
     char fileName[NSTACKX_MAX_REMOTE_PATH_LEN];
     char *fullFileName;
     char *remotePath; /* just usefully for sender */
     uint64_t fileSize;
+    uint8_t flags;
     uint64_t startOffset;
 } FileListEntry;
 
 typedef struct FileList {
     FileListEntry *list;
-    char *userData;
     uint32_t num;
+    char *userData;
     uint8_t userDataFlag;
     uint8_t noticeFileNameType; /* just usefully for sender */
     uint16_t pathType;
@@ -73,8 +75,8 @@ typedef struct {
     char **remotePath; /* remote file path */
     uint64_t startOffset[NSTACKX_DFILE_MAX_FILE_NUM];
     uint64_t fileSize[NSTACKX_DFILE_MAX_FILE_NUM];
-    char *userData;
     uint32_t fileNum;
+    char *userData;
     uint8_t tarFlag;
     uint8_t smallFlag;
     uint8_t noSyncFlag;
@@ -93,9 +95,9 @@ typedef struct {
     const char **files; /* file name */
     const char **remotePath; /* remote file path */
     uint64_t *startOffset;
+    uint32_t fileNum;
     uint64_t *fileSize;
     const char *userData;
-    uint32_t fileNum;
     uint8_t tarFlag;
 } FileListPara;
 

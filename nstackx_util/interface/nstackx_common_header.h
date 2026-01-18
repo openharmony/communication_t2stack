@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2021 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -18,25 +18,22 @@
 
 #include "sys_common_header.h"
 
+#include <sys/types.h>
 #include <sys/stat.h>
+#include <fcntl.h>
 
 // C standard library header files
 #include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
 #include <stdbool.h>
 #include <stdarg.h>
 #include <string.h>
+#include <time.h>
 
 #define PIPE_OUT 0
 #define PIPE_IN 1
 #define PIPE_FD_NUM 2
-
-#define BYTE_BITS_NUM 8
-#define TYPE_BITS_NUM(_type) (sizeof(_type) * BYTE_BITS_NUM)
-
-typedef enum {
-    CIPHER_AES_GCM = 0,
-    CIPHER_CHACHA,
-    CIPHER_AES_NI, // hardware optimize
-} DFileCipherType;
 
 #endif // NSTACKX_COMMON_HEADER_H

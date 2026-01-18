@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -31,7 +31,7 @@ extern "C" {
 
     Output         : NONE
 
-    Return         : NONE
+    Return         : SUCESS/FAILURE
 ******************************************************************************/
 void FillpMacTimerExpire(
     FillpMacInfo *macInfo,
@@ -41,10 +41,12 @@ void FillpMacTimerExpire(
 
     for (counter = 0; counter < FILLP_KEYSIZE; counter += (FILLP_UINT32)sizeof(FILLP_UINT32)) {
         macInfo->oldMacKey[counter] = macInfo->currentMacKey[counter];
+
         macInfo->currentMacKey[counter] = (FILLP_UINT8)FILLP_CRYPTO_RAND();
     }
 
     macInfo->switchOverTime = (FILLP_ULLONG)curTime;
+    return;
 }
 
 

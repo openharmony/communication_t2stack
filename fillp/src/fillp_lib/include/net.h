@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -16,7 +16,9 @@
 #ifndef FILLP_NET_H
 #define FILLP_NET_H
 
+#include "fillp_os.h"
 #include "pcb.h"
+#include "spunge_mem.h"
 #include "fillp.h"
 #include "sysio.h"
 #ifdef __cplusplus
@@ -24,7 +26,7 @@ extern "C" {
 #endif
 
 enum FtConnState {
-    CONN_STATE_IDLE = 0,       /* Alloced but not do connect */
+    CONN_STATE_IDLE = 0,       /* Alloced but not do connnect */
     CONN_STATE_LISTENING = 1,  /* Listen socket */
     CONN_STATE_CONNECTING = 2, /* Do connecting, four handshake not finished yet */
     CONN_STATE_CONNECTED = 3,  /* netConn already connected */
@@ -39,7 +41,7 @@ struct SockOsSocket {
     handle SockOsListEntry first */
     struct HlistNode osListNode; /* This has to be the First member of the structure */
     SysIoSock *ioSock;
-    FILLP_INT reference;
+    FILLP_INT refrence;
     FILLP_INT addrType;
 };
 
@@ -78,10 +80,6 @@ struct FtNetconn {
 #ifdef FILLP_LINUX
     size_t iovCount;
     struct iovec sendIov[UDP_MAX_SEG];
-#endif
-
-#ifdef FILLP_MGT_MSG_LOG
-    FILLP_BOOL extParameterExisted[FILLP_PKT_EXT_BUTT];
 #endif
 };
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2021 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -16,7 +16,7 @@
 #include "nstackx_dfile_retransmission.h"
 
 #include "nstackx_dfile_session.h"
-#include "nstackx_dfile_log.h"
+#include "nstackx_log.h"
 
 #define TAG "nStackXDFile"
 
@@ -43,16 +43,16 @@ static void SendBackPressureFrame(DFileTrans *dFileTrans)
     if (GetFileBlockListSize(&dFileTrans->fileManager->taskList, &recvListAllSize, &recvInnerAllSize) != NSTACKX_EOK) {
         dFileTrans->fileManager->errCode = FILE_MANAGER_EMUTEX;
         NotifyFileManagerMsg(dFileTrans->fileManager, FILE_MANAGER_INNER_ERROR);
-        DFILE_LOGE(TAG, "failed to get GetFileBlockListSize");
+        LOGE(TAG, "failed to get GetFileBlockListSize");
         return;
     }
     allSize = recvListAllSize + recvInnerAllSize;
     uint32_t recvListWindowSize = (dFileTrans->fileManager->iowMaxRate * DFILE_KILOBYTES / NSTACKX_MILLI_TICKS)
         * NSTACKX_ACK_INTERVAL * FILE_RECV_LIST_SLOW_START_RATE;
-    if (((allSize >= (uint32_t)(dFileTrans->fileManager->iowCount * FILE_RECV_LIST_IO_WRITE_THRESHOLD)) ||
-        (allSize >= (uint32_t)(dFileTrans->fileManager->maxRecvBlockListSize * FILE_RECV_LIST_IO_WRITE_THRESHOLD)) ||
-        (allSize * blockFrameSize >= recvListWindowSize)) &&
-        allSize > 0) {
+    if ((allSize >= dFileTrans->fileManager->iowCount * FILE_RECV_LIST_IO_WRITE_THRESHOLD
+        || allSize >= dFileTrans->fileManager->maxRecvBlockListSize * FILE_RECV_LIST_IO_WRITE_THRESHOLD
+        || allSize * blockFrameSize >= recvListWindowSize)
+        && allSize > 0) {
         dFileTrans->fileManager->recvListOverIo = 1;
     } else {
         dFileTrans->fileManager->recvListOverIo = 0;
@@ -61,10 +61,10 @@ static void SendBackPressureFrame(DFileTrans *dFileTrans)
     EncodeBackPressFrame(buf, NSTACKX_DEFAULT_FRAME_SIZE, &frameLen, dFileTrans->fileManager->recvListOverIo);
     int32_t ret = DFileWriteHandle(buf, frameLen, peerInfo);
     if (ret != (int32_t)frameLen && ret != NSTACKX_EAGAIN) {
-        DFILE_LOGE(TAG, "send back pressure frame failed");
+        LOGE(TAG, "send back pressure frame failed");
     }
     if (dFileTrans->fileManager->recvListOverIo == 1) {
-        DFILE_LOGI(TAG, "socket %hhu send back pressure fileManager->recvListOverIo %hhu allSize %u iowCount %llu",
+        LOGI(TAG, "socket %hhu send back pressure fileManager->recvListOverIo %hhu allSize %u iowCount %u",
              peerInfo->socketIndex, dFileTrans->fileManager->recvListOverIo, allSize,
              dFileTrans->fileManager->iowCount);
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -16,7 +16,11 @@
 #ifndef PCB_H
 #define PCB_H
 
+#include "fillp_os.h"
 #include "fillp/fillp_pcb.h"
+#include "mem_pool.h"
+#include "queue.h"
+#include "hlist.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -90,4 +94,4 @@ void SpungePcbSetDirectlySend(struct SpungePcb *pcb, FILLP_INT directlySend);
 }
 #endif
 
-#endif /* PCB_H */
+#endif

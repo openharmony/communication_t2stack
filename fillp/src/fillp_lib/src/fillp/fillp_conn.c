@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -14,8 +14,6 @@
  */
 
 #include "fillp_common.h"
-#include "fillp_mgt_msg_log.h"
-#include "fillp_dfx.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -65,9 +63,9 @@ static FILLP_INT FillpConnReqStateCheck(struct FillpPcb *pcb, FILLP_CONST struct
     FILLP_UINT8 connState = FILLP_GET_CONN_STATE(pcb);
     if (connState == CONN_STATE_CONNECTED) {
         if ((pcb->recv.seqNum == pcb->recv.seqStartNum) && (pcb->send.maxAckNumFromReceiver ==
-            pcb->send.seqStartNum)) { /* Only if no data received or no data acked */
+            pcb->send.seqStartNum)) { /* Only if no data recved or no data acked */
             FILLP_LOGINF("fillp_sock_id:%d Conn req in open state"
-                         "as data not received, so sending conn resp,state = %u",
+                         "as data not recieved, so sending conn resp,state = %u",
                          sock->index, connState);
 
             FillpSendConnConfirmAck(pcb);
@@ -115,7 +113,6 @@ void FillpConnReqInput(struct FillpPcb *pcb, FILLP_CONST struct NetBuf *p)
     flag = tmpHead->flag;
 
     FillpConnReqInputTrace(pcb, sock, req, flag);
-    FILLP_CONN_REQ_LOG(sock->index, req, FILLP_DIRECTION_RX);
     if (FillpConnReqStateCheck(pcb, sock) != ERR_OK) {
         return;
     }
@@ -207,90 +204,71 @@ static FILLP_INT32 FillpDecodeExtParaNameLen(FILLP_CONST FILLP_UCHAR *buf, FILLP
     return len;
 }
 
-static void FillpDecodeRtt(struct FtNetconn *conn, FILLP_CONST FILLP_UCHAR *buf, FILLP_INT bufLen)
+static void FillpDecodeExtParaVal(FILLP_CONST FILLP_UCHAR *buf, FILLP_INT bufLen, FILLP_UCHAR paraLen,
+    FILLP_UCHAR *value, FILLP_UINT32 maxValLen)
 {
-    FILLP_ULLONG rtt;
-    if (bufLen != (FILLP_INT)sizeof(rtt)) {
+    FILLP_UINT8 value8 = 0;
+    FILLP_UINT32 value32;
+    FILLP_ULLONG value64;
+    void *copybuf = FILLP_NULL;
+
+    if ((bufLen < paraLen) || (maxValLen < paraLen)) {
+        FILLP_LOGERR("bufLen %d paraLen %u maxValLen %u", bufLen, paraLen, maxValLen);
         return;
     }
 
-    FILLP_INT err = memcpy_s(&rtt, sizeof(rtt), buf, (FILLP_UINT32)bufLen);
+    if (maxValLen == sizeof(value8)) {
+        copybuf = &value8;
+    } else if (maxValLen == sizeof(value32)) {
+        copybuf = &value32;
+    } else if (maxValLen == sizeof(value64)) {
+        copybuf = &value64;
+    } else {
+        FILLP_LOGERR("maxValLen %u error", maxValLen);
+        return;
+    }
+    errno_t err = memcpy_s(copybuf, maxValLen, buf, paraLen);
     if (err != EOK) {
-        FILLP_LOGERR("memcpy_s failed: %d", err);
+        FILLP_LOGERR("memcpy_s failed:%d ", err);
         return;
     }
 
-    conn->calcRttDuringConnect = FILLP_NTOHLL(rtt);
-#ifdef FILLP_MGT_MSG_LOG
-    conn->extParameterExisted[FILLP_PKT_EXT_CONNECT_CONFIRM_CARRY_RTT] = FILLP_TRUE;
-#endif
+    if (maxValLen == sizeof(value8)) {
+        *(FILLP_UINT16 *)value = value8;
+    } else if (maxValLen == sizeof(value32)) {
+        *(FILLP_UINT32 *)value = FILLP_HTONL(value32);
+    } else {
+        *(FILLP_ULLONG *)value = FILLP_HTONLL(value64);
+    }
 }
 
-static void FillpDecodePktSize(struct FtNetconn *conn, FILLP_CONST FILLP_UCHAR *buf, FILLP_INT bufLen)
-{
-    FILLP_UINT32 pktSize;
-    if (bufLen != (FILLP_INT)sizeof(pktSize)) {
-        return;
-    }
-
-    FILLP_INT err = memcpy_s(&pktSize, sizeof(pktSize), buf, (FILLP_UINT32)bufLen);
-    if (err != EOK) {
-        FILLP_LOGERR("memcpy_s failed: %d", err);
-        return;
-    }
-
-    conn->peerPktSize = FILLP_NTOHL(pktSize);
-#ifdef FILLP_MGT_MSG_LOG
-    conn->extParameterExisted[FILLP_PKT_EXT_CONNECT_CONFIRM_CARRY_PKT_SIZE] = FILLP_TRUE;
-#endif
-}
-
-static void FillpDecodeCharacters(struct FtNetconn *conn, FILLP_CONST FILLP_UCHAR *buf, FILLP_INT bufLen)
-{
-    FILLP_UINT32 characters;
-    if (bufLen != (FILLP_INT)sizeof(characters)) {
-        return;
-    }
-
-    FILLP_INT err = memcpy_s(&characters, sizeof(characters), buf, (FILLP_UINT32)bufLen);
-    if (err != EOK) {
-        FILLP_LOGERR("memcpy_s failed: %d", err);
-        return;
-    }
-
-    conn->peerCharacters = FILLP_NTOHL(characters);
-#ifdef FILLP_MGT_MSG_LOG
-    conn->extParameterExisted[FILLP_PKT_EXT_CONNECT_CARRY_CHARACTER] = FILLP_TRUE;
-#endif
-}
-
-static void FillpDecodeFcAlg(struct FtNetconn *conn, FILLP_CONST FILLP_UCHAR *buf, FILLP_INT bufLen)
-{
-    if (bufLen != (FILLP_INT)sizeof(conn->peerFcAlgs)) {
-        return;
-    }
-
-    conn->peerFcAlgs = *(FILLP_UINT8 *)buf;
-#ifdef FILLP_MGT_MSG_LOG
-    conn->extParameterExisted[FILLP_PKT_EXT_CONNECT_CARRY_FC_ALG] = FILLP_TRUE;
-#endif
-}
-
-typedef void (*FIllpExtParaDecoder)(struct FtNetconn *conn, FILLP_CONST FILLP_UCHAR *buf, FILLP_INT bufLen);
-static FIllpExtParaDecoder g_extParaDecoder[FILLP_PKT_EXT_BUTT] = {
-    FILLP_NULL_PTR, /* FILLP_PKT_EXT_START */
-    FillpDecodeRtt, /* FILLP_PKT_EXT_CONNECT_CONFIRM_CARRY_RTT */
-    FillpDecodePktSize, /* FILLP_PKT_EXT_CONNECT_CONFIRM_CARRY_PKT_SIZE */
-    FillpDecodeCharacters, /* FILLP_PKT_EXT_CONNECT_CARRY_CHARACTER */
-    FillpDecodeFcAlg, /* FILLP_PKT_EXT_CONNECT_CARRY_FC_ALG */
+struct ExtParaOut {
+    size_t len;
+    void *val;
 };
 
-FILLP_INT32 FillpDecodeExtPara(FILLP_CONST FILLP_UCHAR *buf, FILLP_INT bufLen, struct FtNetconn *conn)
+static FILLP_INT32 FillpDecodeExtPara(FILLP_CONST FILLP_UCHAR *buf, FILLP_INT bufLen, struct FtNetconn *conn)
 {
     FILLP_INT len = 0;
     FILLP_UCHAR paraType = 0;
     FILLP_UCHAR paraLen = 0;
     FILLP_INT ret;
+
+    struct ExtParaOut para[] = {
+        {
+            .len = sizeof(FILLP_ULLONG),
+            .val = &conn->calcRttDuringConnect, /* FILLP_PKT_EXT_CONNECT_CONFIRM_CARRY_RTT */
+        }, {
+            .len = sizeof(FILLP_UINT32),
+            .val = &conn->peerPktSize, /* FILLP_PKT_EXT_CONNECT_CONFIRM_CARRY_PKT_SIZE */
+        }, {
+            .len = sizeof(FILLP_UINT32),
+            .val = &conn->peerCharacters, /* FILLP_PKT_EXT_CONNECT_CARRY_CHARACTER */
+        }, {
+            .len = sizeof(FILLP_UINT8),
+            .val = &conn->peerFcAlgs, /* FILLP_PKT_EXT_CONNECT_CARRY_FC_ALG */
+        },
+    };
 
     while (len < bufLen) {
         ret = FillpDecodeExtParaNameLen(buf + len, bufLen - len, &paraType, &paraLen);
@@ -301,14 +279,14 @@ FILLP_INT32 FillpDecodeExtPara(FILLP_CONST FILLP_UCHAR *buf, FILLP_INT bufLen, s
 
         len += ret;
 
-        FILLP_LOGERR("paraType:%u ", paraType);
-
-        if (bufLen - len >= paraLen &&
-            paraType > FILLP_PKT_EXT_START && paraType < FILLP_PKT_EXT_BUTT &&
-            g_extParaDecoder[paraType] != FILLP_NULL_PTR) {
-            g_extParaDecoder[paraType](conn, buf + len, paraLen);
+        if (paraType < FILLP_PKT_EXT_CONNECT_CONFIRM_CARRY_RTT ||
+            paraType > FILLP_PKT_EXT_CONNECT_CARRY_FC_ALG) {
+            len += paraLen;
+            continue;
         }
-
+        FILLP_LOGERR("paraType:%u ", paraType);
+        FillpDecodeExtParaVal(buf + len, bufLen - len, paraLen, para[paraType - 1].val,
+            (FILLP_UINT32)para[paraType - 1].len);
         len += paraLen;
     }
 
@@ -390,9 +368,6 @@ static FILLP_INT32 FillpDecodeConnReqAckClientPara(struct FillpPcb *pcb, FILLP_C
         FILLP_LOGERR("FillpDecodeExtPara failed");
         return FILLP_FAILURE;
     }
-
-    FILLP_CONN_REQ_ACK_RX_LOG(FILLP_GET_SOCKET(pcb)->index, (struct FillpPktHead *)p->p, reqAck,
-        (FILLP_UCHAR *)buf, p->len - len);
 
     pcb->characters = conn->peerCharacters & (FILLP_UINT32)FILLP_DEFAULT_SUPPORT_CHARACTERS;
     pcb->fcAlg = FillpConsultFcAlg(pcb->fcAlg, conn->peerFcAlgs);
@@ -485,7 +460,9 @@ void FillpConnReqAckInput(struct FillpPcb *pcb, FILLP_CONST struct NetBuf *p)
         }
     }
 
+
     FillpSendConnConfirm(pcb, &reqAck);
+    return;
 }
 
 static FILLP_INT FillpInitNewPcbByNewConn(struct FtNetconn *newConn, FILLP_SIZE_T maxSendCache,
@@ -588,7 +565,7 @@ static FILLP_INT FillpInitNewConnByConfirm(struct FillpPcb *pcb, struct FtNetcon
          then fc_cyle() will run and coredump can happen as the netconn->sock will be NULL
 
     */
-    newConn->sock = sock; // It is very important to set this , because it is necessary to make netconn has a socket
+    newConn->sock = sock; // It is very important to set this , because it is neccesary to make netconn has a socket
     if (FillpInitNewPcbByNewConn(newConn, maxSendCache, maxRecvCache) != 0) {
         return -1;
     }
@@ -643,6 +620,7 @@ static void FillpProcessConnConfirm(struct FillpPcb *pcb, FILLP_CONST struct Net
     struct FtNetconn *newConn = FillpNetconnAlloc(addr->sa_family, inst);
     if (newConn == FILLP_NULL_PTR) {
         FILLP_LOGERR("fillp_sock_id:%d Failed in allocate new netconn connection", sock->index);
+
         return;
     }
 
@@ -650,7 +628,7 @@ static void FillpProcessConnConfirm(struct FillpPcb *pcb, FILLP_CONST struct Net
         parameter, so used current node pkt size */
     FillpInitPeerOfNewconn(newConn, sock->resConf.flowControl.pktSize);
 
-    /* Decode connection confirm extension parameters */
+    /* Decode connection confirm extention parameters */
     (void)FillpDecodeExtPara((FILLP_UCHAR *)(p->p) + sizeof(struct FillpPktConnConfirm),
         (FILLP_INT)(p->len - ((FILLP_INT)sizeof(struct FillpPktConnConfirm) - FILLP_HLEN)), newConn);
 
@@ -670,7 +648,7 @@ static void FillpProcessConnConfirm(struct FillpPcb *pcb, FILLP_CONST struct Net
 
     /* Here we need to set newConn->osSock, or it will be null pointer, and when do accept, it will be rewrite */
     newConn->osSocket[SPUNGE_GET_CUR_INSTANCE()->instIndex] = osSock;
-    osSock->reference++;
+    osSock->refrence++;
     if (err != ERR_OK) {
         FILLP_LOGERR("sysio connect fail");
         FillpNetconnDestroy(newConn);
@@ -725,7 +703,7 @@ static FILLP_BOOL FillpConfirmCheckState(FILLP_UINT8 connState, struct FtSocket 
         if ((pcb->recv.seqNum == pcb->recv.seqStartNum) && (pcb->send.maxAckNumFromReceiver ==
             pcb->send.seqStartNum)) { /* Only if no data recved or no data acked */
             FILLP_LOGDBG("fillp_sock_id:%d Conn confirm in open state "
-                         "as data not received, so sending conn confirm ack, state = %u",
+                         "as data not recieved, so sending conn confirm ack, state = %u",
                          sock->index, connState);
 
             FillpSendConnConfirmAck(pcb);
@@ -764,8 +742,6 @@ void FillpConnConfirmInput(struct FillpPcb *pcb, FILLP_CONST struct NetBuf *p, s
 
     struct FillpPktConnConfirm *confirm = (struct FillpPktConnConfirm *)(void *)p->p;
     FillpConnConfirmTrace(sock, confirm);
-    FILLP_CONN_CONFIRM_RX_LOG(sock->index, confirm, (FILLP_UCHAR *)p->p + sizeof(struct FillpPktConnConfirm),
-        (FILLP_INT)(p->len - ((FILLP_INT)sizeof(struct FillpPktConnConfirm) - FILLP_HLEN)));
 
     FILLP_UINT8 connState = NETCONN_GET_STATE(conn);
     if (FillpConfirmCheckState(connState, sock, pcb) == FILLP_FALSE) {
@@ -777,7 +753,7 @@ void FillpConnConfirmInput(struct FillpPcb *pcb, FILLP_CONST struct NetBuf *p, s
     confirm->tagCookie = FILLP_NTOHS(confirm->tagCookie);
 
     if ((confirm->tagCookie != FILLP_COOKIE_TAG) || (confirm->cookieLength != sizeof(FillpCookieContent))) {
-        FILLP_LOGINF("fillp_sock_id:%d, received cookie length = %u,"
+        FILLP_LOGINF("fillp_sock_id:%d, received cookie lenght = %u,"
                      "actual cookie size = %zu, discarding the packet",
                      sock->index, confirm->cookieLength, sizeof(FillpCookieContent));
         return;
@@ -794,7 +770,7 @@ void FillpConnConfirmInput(struct FillpPcb *pcb, FILLP_CONST struct NetBuf *p, s
 
     if (sock->listenBacklog <= 0) {
         FILLP_UINT32 localUniqueIdBk = pcb->localUniqueId;
-        FILLP_LOGINF("fillp_sock_id:%d listen backLog is not available, backLog = %d",
+        FILLP_LOGINF("fillp_sock_id:%d listen backLog is not avaliable, backLog = %d",
             sock->index, sock->listenBacklog);
         /*
             We are not using 3rd parmeter , so removed to fix leval 4
@@ -806,6 +782,7 @@ void FillpConnConfirmInput(struct FillpPcb *pcb, FILLP_CONST struct NetBuf *p, s
         return;
     }
     FillpProcessConnConfirm(pcb, p, confirm, conn, inst);
+    return;
 }
 
 void FillpHandleConnConfirmAckInput(struct FtSocket *sock, struct FtNetconn *conn, struct FillpPcb *pcb,
@@ -822,7 +799,7 @@ void FillpHandleConnConfirmAckInput(struct FtSocket *sock, struct FtNetconn *con
     }
 
     FILLP_LOGINF("FillpConnConfirmAckInput: fillp_sock_id:%d client connection "
-                 "established, time = %lld, local seq num = %u, local pkt num = %u, peer seq num = %u, "
+                 "estabished, time = %lld, local seq num = %u, local pkt num = %u, peer seq num = %u, "
                  "peer pkt num = %u, maxRate:%u, maxRecvRate:%u",
                  sock->index, SYS_ARCH_GET_CUR_TIME_LONGLONG(), pcb->send.seqNum, pcb->send.pktNum, pcb->recv.seqNum,
                  pcb->recv.pktNum, sock->resConf.flowControl.maxRate, sock->resConf.flowControl.maxRecvRate);
@@ -834,8 +811,6 @@ void FillpHandleConnConfirmAckInput(struct FtSocket *sock, struct FtNetconn *con
     sock->coreErrType[MSG_TYPE_DO_CONNECT] = ERR_OK;
 
     FILLP_UNUSED_PARA(p);
-
-    pcb->connTimestamp = SYS_ARCH_GET_CUR_TIME_LONGLONG();
 }
 
 static FILLP_BOOL FillpCheckConfirmAckInfoIsValid(struct FillpPcb *pcb, struct FtSocket *sock,
@@ -867,7 +842,7 @@ static FILLP_BOOL FillpCheckConfirmAckInfoIsValid(struct FillpPcb *pcb, struct F
     serverRecvCache = confirmAck->recvCache;
 
     if ((serverSendCache > pcb->mpRecvSize) || (serverRecvCache > pcb->mpSendSize)) {
-        FILLP_LOGINF("FillpConnConfirmAckInput: fillp_sock_id:%d Connection response send cache or receive "
+        FILLP_LOGINF("FillpConnConfirmAckInput: fillp_sock_id:%d Connection response send cache or recive "
                      "cache is more than what client requested sendCache : %u receive_cache:%u \r\n",
                      sock->index, serverSendCache, serverRecvCache);
         return FILLP_FALSE;
@@ -965,6 +940,8 @@ static void FillpCheckandcopyConfirmAckAddr(struct FillpPcb *fpcb,
 
     (void)memcpy_s(&spcb->localAddr, sizeof(struct sockaddr_in6), &confirmAck->remoteAddr,
         sizeof(struct sockaddr_in6));
+
+    return;
 }
 
 static FILLP_BOOL FillpCheckConfirmAckPar(struct FillpPcb *pcb, FILLP_CONST struct NetBuf *p)
@@ -1029,7 +1006,6 @@ static void FillpSaveConfirmActToPcb(struct FillpPktConnConfirmAck *confirmAck, 
 {
     struct FillpPktHead *tmpHeader = (struct FillpPktHead *)(void *)confirmAck->head;
     pcb->peerUniqueId = tmpHeader->seqNum;
-    pcb->recv.prePackPktNum = tmpHeader->pktNum;
     pcb->recv.pktNum = tmpHeader->pktNum;
     pcb->recv.seqNum = tmpHeader->seqNum;
     pcb->recv.pktStartNum = tmpHeader->pktNum;
@@ -1048,7 +1024,6 @@ void FillpConnConfirmAckInput(struct FillpPcb *pcb, FILLP_CONST struct NetBuf *p
     struct FillpPktConnConfirmAck *confirmAck = (struct FillpPktConnConfirmAck *)(void *)p->p;
     struct FtSocket *sock = (struct FtSocket *)conn->sock;
     FillpConnConfirmAckTrace(sock, confirmAck);
-    FILLP_CONN_CONFIRM_ACK_LOG(sock->index, confirmAck, FILLP_DIRECTION_RX);
     FILLP_UINT8 connState = FILLP_GET_CONN_STATE(pcb);
     if (connState != CONN_STATE_CONNECTING) {
         FILLP_LOGINF("fillp_sock_id:%d Connection state response is not correct, state = %u", sock->index, connState);
@@ -1083,10 +1058,11 @@ void FillpConnConfirmAckInput(struct FillpPcb *pcb, FILLP_CONST struct NetBuf *p
     conn->clientFourHandshakeState = FILLP_CLIENT_FOUR_HANDSHAKE_STATE_CONFIRMACK_RCVED;
     FILLP_LOGDBG("FillpConnConfirmAckInput: fillp_sock_id:%d, initial_send_rate = %u", FILLP_GET_SOCKET(pcb)->index,
         pcb->send.flowControl.sendRate);
+    return;
 }
 
 static void ConnectingHandleFinInput(struct FillpPcb *pcb, struct FtSocket *sock,
-    struct FtNetconn *conn, FILLP_CONST struct NetBuf *p, FILLP_CONST struct FillpFinFlags *flags)
+    struct FtNetconn *conn, FILLP_CONST struct NetBuf *p, struct FillpFinFlags *flags)
 {
     /* If this socket is not accepted then no event need to given to application as listen socket
         IN event is already gives and current socket is accepted by application. No need to change state also.
@@ -1132,6 +1108,7 @@ static void FillpStateClosingHandleFinInput(struct FillpPcb *pcb, struct FtNetco
 
         *pcbFreed = FILLP_TRUE;
         SpungeConnClosed(conn);
+        return;
     }
 }
 
@@ -1172,6 +1149,7 @@ static void FillpFinInputTrace(FILLP_CONST struct FtSocket *sock, FILLP_CONST st
         FILLP_LM_FILLPMSGTRACE_OUTPUT_WITHOUT_FT_TRACE_ENABLE_FLAG(FILLP_TRACE_DIRECT_NETWORK, sock->traceHandle,
             sizeof(struct FillpPktFin), sock->index, fillpTrcDesc, (FILLP_CHAR *)(&tmpFinPkt));
     }
+    return;
 }
 
 static FILLP_INT FillpHandleFinFlagGet(FILLP_CONST struct NetBuf *p, struct FillpFinFlags *flags)
@@ -1276,7 +1254,6 @@ static void FillpHandleFin(struct FillpPcb *pcb, FILLP_CONST struct NetBuf *p, F
             }
 
             /* RST case */
-            FillpDfxSockLinkAndQosNotify(sock, FILLP_DFX_LINK_FIN_INPUT);
             if (flags.wrSet && flags.rdSet) {
                 FillpHandleFinRst(conn, sock);
                 return;
@@ -1312,8 +1289,6 @@ void FillpFinInput(struct FillpPcb *pcb, FILLP_CONST struct NetBuf *p, FILLP_BOO
         return;
     }
 
-    FILLP_CONN_FIN_LOG(sock->index, (struct FillpPktFin *)(void *)p->p, FILLP_DIRECTION_RX);
-
     if (sock->isListenSock) {
         return;
     }
@@ -1327,12 +1302,13 @@ void FillpFinInput(struct FillpPcb *pcb, FILLP_CONST struct NetBuf *p, FILLP_BOO
     fillpHead = (struct FillpPktHead *)fin->head;
 
     if (fillpHead->seqNum != pcb->peerUniqueId) {
-        FILLP_LOGWAR("FillpFinInput: fillp_sock_id:%d Stale fin received peerUniqueId = %u,"
+        FILLP_LOGWAR("FillpFinInput: fillp_sock_id:%d Stale fin recevied peerUniqueId = %u,"
             "fin->head.seqNum %u\r\n", sock->index, pcb->peerUniqueId, fillpHead->seqNum);
         return;
     }
 
     FillpHandleFin(pcb, p, pcbFreed);
+    return;
 }
 
 static void FillpSendConnReqBuild(struct FillpPcb *pcb, struct FillpPktConnReq *req, FILLP_LLONG curTime)
@@ -1368,8 +1344,6 @@ static void FillpSendConnReqBuild(struct FillpPcb *pcb, struct FillpPktConnReq *
 
     pktHdr->pktNum = FILLP_HTONL(pktHdr->pktNum);
     pktHdr->seqNum = FILLP_HTONL(pktHdr->seqNum);
-
-    FILLP_CONN_REQ_LOG(FILLP_GET_SOCKET(pcb)->index, req, FILLP_DIRECTION_RX);
 }
 
 FILLP_INT FillpSendConnReq(struct FillpPcb *pcb)
@@ -1428,8 +1402,8 @@ FILLP_INT FillpSendConnReq(struct FillpPcb *pcb)
     return ret;
 }
 
-static FILLP_UINT16 FillpSendConnReqAckBuild(FILLP_CONST struct FillpPcb *pcb,
-    FILLP_CONST FillpCookieContent *stateCookie, FILLP_ULLONG timestamp)
+static FILLP_UINT16 FillpSendConnReqAckBuild(FILLP_CONST FillpCookieContent *stateCookie,
+    FILLP_ULLONG timestamp)
 {
     FILLP_INT ret;
     FILLP_UINT32 localCharacters = (FILLP_UINT32)FILLP_DEFAULT_SUPPORT_CHARACTERS;
@@ -1484,9 +1458,6 @@ static FILLP_UINT16 FillpSendConnReqAckBuild(FILLP_CONST struct FillpPcb *pcb,
     }
 
     pktHdr->dataLen = FILLP_HTONS(dataLen - (FILLP_UINT16)FILLP_HLEN);
-
-    FILLP_CONN_REQ_ACK_TX_LOG(FILLP_GET_SOCKET(pcb)->index, reqAck, g_rawMsg + sizeof(struct FillpPktConnReqAck),
-        dataLen - sizeof(struct FillpPktConnReqAck));
     return dataLen;
 }
 
@@ -1511,12 +1482,12 @@ void FillpSendConnReqAck(struct FillpPcb *pcb, FILLP_CONST FillpCookieContent *s
     conn = FILLP_GET_CONN(pcb);
     sock = (struct FtSocket *)conn->sock;
 
-    dataLen = FillpSendConnReqAckBuild(pcb, stateCookie, timestamp);
+    dataLen = FillpSendConnReqAckBuild(stateCookie, timestamp);
     if (dataLen == 0) {
         return;
     }
 
-    if (AF_INET == stateCookie->addressType) {
+    if (AF_INET == stateCookie->addresType) {
         *((struct sockaddr_in *)&tempPcb->remoteAddr) = *((struct sockaddr_in *)&stateCookie->remoteSockIpv6Addr);
         tempPcb->addrType = AF_INET;
         tempPcb->addrLen = sizeof(struct sockaddr_in);
@@ -1664,13 +1635,11 @@ void FillpSendConnConfirm(struct FillpPcb *pcb, FILLP_CONST struct FillpConnReqA
         return;
     }
 
-    FILLP_INT extParaOffset = encMsgLen;
     encMsgLen = ConnConfirmEncodeExtPara(pcb, encMsgLen);
     /* To send the FILLP_CONNECT_CONFIRM_CARRY_RTT */
     pktHdr->dataLen = (FILLP_UINT16)(encMsgLen - FILLP_HLEN);
     pktHdr->dataLen = FILLP_HTONS(pktHdr->dataLen);
 
-    FILLP_CONN_CONFIRM_TX_LOG(ftSock->index, g_rawMsg, encMsgLen, extParaOffset);
 
     ret = pcb->sendFunc(conn, (FILLP_CHAR *)g_rawMsg, encMsgLen, conn->pcb);
     if (ret <= 0) {
@@ -1730,8 +1699,6 @@ void FillpSendConnConfirmAck(struct FillpPcb *pcb)
     (void)memcpy_s(&confirmAck.remoteAddr, sizeof(confirmAck.remoteAddr), &conn->pcb->remoteAddr,
         sizeof(conn->pcb->remoteAddr));
 
-    FILLP_CONN_CONFIRM_ACK_LOG(ftSock->index, &confirmAck, FILLP_DIRECTION_TX);
-
     ret = pcb->sendFunc(FILLP_GET_CONN(pcb), (char *)&confirmAck, sizeof(struct FillpPktConnConfirmAck), conn->pcb);
     if (ret <= 0) {
         pcb->statistics.debugPcb.connConfirmAckFailed++;
@@ -1744,8 +1711,9 @@ void FillpSendConnConfirmAck(struct FillpPcb *pcb)
             (FILLP_CHAR *)(&confirmAck));
 
         pcb->statistics.debugPcb.connConfirmAckSend++;
-        pcb->connTimestamp = SYS_ARCH_GET_CUR_TIME_LONGLONG();
     }
+
+    return;
 }
 
 static void FillpSendFinBuild(FILLP_CONST struct FillpPcb *pcb, struct FillpPktFin *req,
@@ -1813,8 +1781,6 @@ static void FillpSendFinInnerImpl(struct FillpPcb *pcb, FILLP_CONST struct Fillp
         }
     }
 
-    FILLP_CONN_FIN_LOG(FILLP_GET_SOCKET(pcb)->index, &req, FILLP_DIRECTION_TX);
-
     ret = pcb->sendFunc(conn, (char *)&req, sizeof(struct FillpPktFin), remotePcb);
     if (ret <= 0) {
         pcb->statistics.debugPcb.disconnReqFailed++;
@@ -1842,7 +1808,7 @@ static void FillpSendFinInner(struct FillpPcb *pcb, FILLP_BOOL wrSet, FILLP_BOOL
     flags.ackSet = ackSet;
     flags.verSet = FILLP_FALSE;
 
-    FillpSendFinInnerImpl(pcb, &flags, remoteAddr);
+    return FillpSendFinInnerImpl(pcb, &flags, remoteAddr);
 }
 
 void FillpSendRstWithVersionImcompatible(struct FillpPcb *pcb, struct sockaddr *remoteAddr)
@@ -1853,7 +1819,7 @@ void FillpSendRstWithVersionImcompatible(struct FillpPcb *pcb, struct sockaddr *
     flags.ackSet = FILLP_TRUE;
     flags.verSet = FILLP_TRUE;
 
-    FillpSendFinInnerImpl(pcb, &flags, remoteAddr);
+    return FillpSendFinInnerImpl(pcb, &flags, remoteAddr);
 }
 
 void FillpSendFin(struct FillpPcb *pcb)
@@ -1872,6 +1838,8 @@ void FillpSendFin(struct FillpPcb *pcb)
 
     FillpSendFinInner(pcb, wrSet, rdSet, ackSet,
         (struct sockaddr *)(&((struct SpungePcb*)(pcb->spcb))->remoteAddr));
+
+    return;
 }
 
 void FillpSendFinAck(struct FillpPcb *pcb, struct sockaddr *remoteAddr)
@@ -1885,7 +1853,18 @@ void FillpSendRst(struct FillpPcb *pcb, struct sockaddr *remoteAddr)
 }
 
 
-/* This function Generates the cookieContent for fillp on receiving Connection request from peer. */
+/* *****************************************************************************
+    Function       : FillpGenerateCookie
+
+    Description    : This function Generates the cookieContent for fillp on receiving
+                    Connection request from peer.
+
+    Input          :
+    Output         : NONE
+
+
+    Return         : FILLP_SUCCESS/FILLP_FAILURE
+***************************************************************************** */
 void FillpGenerateCookie(IN FILLP_CONST struct FillpPcb *pcb, IN struct FillpPktConnReq *req,
     IN FILLP_CONST struct sockaddr_in6 *remoteAddr, IN FILLP_UINT16 serverPort, OUT FillpCookieContent *stateCookie)
 {
@@ -1913,7 +1892,7 @@ void FillpGenerateCookie(IN FILLP_CONST struct FillpPcb *pcb, IN struct FillpPkt
     stateCookie->localPacketSeqNumber = FILLP_CRYPTO_RAND();
     stateCookie->remoteMessageSeqNumber = pktHdr->seqNum;
     stateCookie->remotePacketSeqNumber = pktHdr->pktNum;
-    stateCookie->addressType = addr->sa_family;
+    stateCookie->addresType = addr->sa_family;
     stateCookie->srcPort = serverPort;
     if (req->cookiePreserveTime <= FILLP_MAX_COOKIE_LIFETIME) {
         stateCookie->lifeTime = FILLP_INITIAL_COOKIE_LIFETIME + req->cookiePreserveTime;
@@ -1991,7 +1970,19 @@ static FILLP_INT  FillpValidateCookieHmac(FILLP_CONST struct FillpPcb *pcb, FILL
     return ERR_OK;
 }
 
-/* This function validates the cookieContent from peer. */
+/* *****************************************************************************
+    Function       : FillpValidateCookie
+
+    Description    : This function validates the cookieContent from peer.
+
+    Input          :
+    Output         : NONE
+
+
+    Return         : FILLP_SUCCESS/FILLP_FAILURE
+    Modify         : Change prototype to include usClientPort
+
+***************************************************************************** */
 FILLP_INT FillpValidateCookie(IN FILLP_CONST struct FillpPcb *pcb, IN FILLP_UINT16 serverPort,
     IN FILLP_CONST struct sockaddr_in6 *clientAddr, IN FILLP_CONST FillpCookieContent *stateCookie)
 {

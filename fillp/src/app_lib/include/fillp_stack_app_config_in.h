@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -16,9 +16,11 @@
 #ifndef FILLP_STACK_APP_CONFIG_IN_H
 #define FILLP_STACK_APP_CONFIG_IN_H
 
+#include "utils.h"
 #include "spunge.h"
 #include "socket_common.h"
 #include "res.h"
+#include "spunge_stack.h"
 #include "spunge_message.h"
 
 #ifdef __cplusplus

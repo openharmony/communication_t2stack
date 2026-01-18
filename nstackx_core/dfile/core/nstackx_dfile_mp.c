@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2021 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -13,13 +13,12 @@
  * limitations under the License.
  */
 
-#include "nstackx_dfile_mp.h"
-#include "nstackx_dfile_log.h"
 #include "nstackx_dfile_send.h"
+#include "nstackx_dfile_mp.h"
 #include "nstackx_dfile_transfer.h"
 #include "nstackx_file_manager.h"
+#include "nstackx_log.h"
 #include "securec.h"
-
 #define TAG "nStackXDfileMp"
 
 int32_t DFileSocketRecvSP(DFileSession *session)
@@ -49,7 +48,7 @@ int32_t DFileSocketRecvSP(DFileSession *session)
     }
     if (ret <= 0) {
         if (ret != NSTACKX_EAGAIN) {
-            DFILE_LOGE(TAG, "socket recv failed");
+            LOGE(TAG, "socket recv failed");
             return NSTACKX_EFAILED;
         }
         return NSTACKX_EAGAIN;
@@ -62,7 +61,7 @@ int32_t DFileSocketRecvSP(DFileSession *session)
         ret = DFileSessionHandleReadBuffer(session, frame, (size_t)ret, &peerAddr, 0);
     }
     if (ret != NSTACKX_EOK) {
-        DFILE_LOGE(TAG, "handle read buffer failed");
+        LOGE(TAG, "handle read buffer failed");
     }
     return ret;
 }
@@ -101,13 +100,12 @@ int32_t CreateSenderThread(DFileSession *session)
 
     para = malloc(sizeof(SenderThreadPara));
     if (para == NULL) {
-        DFILE_LOGE(TAG, "Failed to allocate memory for SenderThreadPara");
         return NSTACKX_ENOMEM;
     }
     para->session = session;
     para->socketIndex = 0;
     if (PthreadCreate(&(session->senderTid[0]), NULL, DFileSenderHandle, para)) {
-        DFILE_LOGE(TAG, "Create sender thread 0 failed");
+        LOGE(TAG, "Create sender thread 0 failed");
         free(para);
         return NSTACKX_EFAILED;
     }
@@ -119,7 +117,7 @@ int32_t RebuildFilelist(const char *files[], const char *remotePath[], uint32_t 
     DFileSession *session, DFileRebuildFileList *rebuildList)
 {
     if (session->allTaskCount >= NSTACKX_MAX_FILE_LIST_NUM) {
-        DFILE_LOGI(TAG, "more than %d send task", NSTACKX_MAX_FILE_LIST_NUM);
+        LOGI(TAG, "more than %d send task", NSTACKX_MAX_FILE_LIST_NUM);
         return NSTACKX_EFAILED;
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -56,11 +56,6 @@ struct SpungeEvtInfoMsg {
     FtEventCbkInfo *info;
 };
 
-struct SpungeHiEventCbMsg {
-    void *softObj;
-    FillpDfxEventCb cb;
-};
-
 struct SpungeMsg {
     void *value;
     int msgType;
@@ -83,7 +78,6 @@ enum SpungeMsgType {
     MSG_TYPE_SET_NACK_DELAY,
     MSG_TYPE_GET_EVENT_INFO,
     MSG_TYPE_SET_KEEP_ALIVE,
-    MSG_TYPE_SET_HIEVENT_CB,
     MSG_TYPE_END
 };
 

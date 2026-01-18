@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -61,6 +61,8 @@ static void FillpDelPktSeqHashItem(FILLP_UINT32 pktNum, FILLP_CONST struct Fillp
     if (pos != FILLP_NULL_PTR) {
         HlistDelete(list, pos);
     }
+
+    return;
 }
 
 void FillpMoveUnackToUnrecv(FILLP_UINT32 ackSeq, FILLP_UINT32 lostSeq, struct FillpPcb *pcb,
@@ -165,6 +167,8 @@ void FillpMoveUnackToUnrecvAll(FILLP_UINT32 ackSeq, FILLP_UINT32 lostSeq, struct
     if (pcb->send.unrecvList.nodeNum > 0) {
         FillpEnableSendTimer(pcb);
     }
+
+    return;
 }
 
 static inline void LogForMsgRTT(const struct FillpPcbItem *item)
@@ -202,6 +206,8 @@ static void FillpAckItemWaitTklist(struct FillpPcb *pcb, FILLP_UINT32 seqNum)
 #endif /* SOCK_SEND_SEM */
         node = SkipListGetPop(&pcb->send.itemWaitTokenLists);
     }
+
+    return;
 }
 
 static int FillpAckUnrecvList(struct FillpPcb *pcb, FILLP_UINT32 seqNum)
@@ -266,6 +272,8 @@ static void FillpAckRedunlist(struct FillpPcb *pcb, FILLP_UINT32 seqNum)
 #endif /* SOCK_SEND_SEM */
         node = SkipListGetPop(&pcb->send.redunList);
     }
+
+    return;
 }
 
 static void FreeUnackList(struct FillpPcb *pcb, struct FillpPcbItem *item, struct Hlist *tempCtl)
@@ -283,8 +291,7 @@ static void FreeUnackList(struct FillpPcb *pcb, struct FillpPcbItem *item, struc
     FillpFreeItemAndEvent(pcb, item);
 }
 
-IGNORE_OVERFLOW static void FillpAckUnackList(struct FillpPcb *pcb,
-    FILLP_UINT32 curSeq, FILLP_INT cntLimit)
+static void FillpAckUnackList(struct FillpPcb *pcb, FILLP_UINT32 curSeq, FILLP_INT cntLimit)
 {
     FILLP_UINT32 i, loopCount;
 
@@ -307,6 +314,7 @@ IGNORE_OVERFLOW static void FillpAckUnackList(struct FillpPcb *pcb,
         goto END;
     }
 
+    // Still need to check if should loop all list
     struct FillpHashLlist *unackList = &(pcb->send.unackList);
     FILLP_UINT32 unackListSize = unackList->size;
     FILLP_UINT32 hashModSize = unackList->hashModSize;
@@ -315,7 +323,7 @@ IGNORE_OVERFLOW static void FillpAckUnackList(struct FillpPcb *pcb,
     FILLP_UINT32 curSeqIndex = (curSeq / FILLP_UNACK_HASH_MOD) & hashModSize;
 
     // Still need to check if should loop all list
-    if (((curSeq / FILLP_UNACK_HASH_MOD) - (pcb->send.ackSeqNum / FILLP_UNACK_HASH_MOD)) >= unackListSize) {
+    if (((curSeq - pcb->send.ackSeqNum) / FILLP_UNACK_HASH_MOD) >= unackListSize) {
         loopCount = unackListSize;
     } else {
         loopCount = UTILS_MIN((curSeqIndex + unackListSize - lastSeqIndex) & hashModSize, unackListSize);
@@ -345,7 +353,7 @@ END:
     SpungeEpollEventCallback(sock, SPUNGE_EPOLLOUT, count);
 }
 
-IGNORE_OVERFLOW void FillpAckSendPcb(struct FillpPcb *pcb, FILLP_INT cntLimit)
+void FillpAckSendPcb(struct FillpPcb *pcb, FILLP_INT cntLimit)
 {
     FILLP_UINT32 pktSendCnt;
     /* ack the item in unackList */
@@ -357,6 +365,8 @@ IGNORE_OVERFLOW void FillpAckSendPcb(struct FillpPcb *pcb, FILLP_INT cntLimit)
             pcb->send.inSendBytes);
         pcb->send.inSendBytes = 0;
     }
+
+    return;
 }
 
 #if FILLP_ADHOC_PACK_ENABLE
@@ -375,10 +385,12 @@ static void FillpSendAdhocpack(struct FillpPcb *pcb)
     pack.lostSeq = pcb->recv.seqNum;
 
     FillpBuildAndSendPack(pcb, ftSock, &pack, sizeof(struct FillpPktPack) - FILLP_HLEN);
+
+    return;
 }
 #endif
 
-IGNORE_OVERFLOW void FillpUploadRecvBox(struct FillpPcb *pcb)
+void FillpUploadRecvBox(struct FillpPcb *pcb)
 {
     struct FillpPcbItem *item = FILLP_NULL_PTR;
     struct SkipListNode *node = FILLP_NULL_PTR;
@@ -437,6 +449,8 @@ IGNORE_OVERFLOW void FillpUploadRecvBox(struct FillpPcb *pcb)
 #endif
         }
     } while (needLoopRun);
+
+    return;
 }
 
 static void FillpSendRepaetNack(struct FillpPcb *pcb, struct FillpPktNack *nack)
@@ -464,6 +478,7 @@ static void FillpSendRepaetNack(struct FillpPcb *pcb, struct FillpPktNack *nack)
             pcb->statistics.debugPcb.nackSend++;
         }
     }
+    return;
 }
 
 void FillpSendNack(struct FillpPcb *pcb, FILLP_UINT32 startPktNum, FILLP_UINT32 endPktNum)
@@ -507,6 +522,8 @@ void FillpSendNack(struct FillpPcb *pcb, FILLP_UINT32 startPktNum, FILLP_UINT32 
     }
 
     FillpFcRecvLost(pcb, lostPktNum);
+
+    return;
 }
 
 static void FillpAddNodeAtDelayNackListTail(struct FillpPcb *pcb, FILLP_UINT32 startPktNum, FILLP_UINT32 endPktNum)
@@ -678,6 +695,8 @@ void FillpDataToStack(struct FillpPcb *pcb, struct FillpPcbItem *item)
     pcb->recv.recvBytes += item->dataLen;
 
     FillpUploadRecvBox(pcb);
+
+    return;
 }
 
 void FillpAjustTlpParameterByRtt(struct FillpPcb *pcb, FILLP_LLONG rtt)
@@ -728,6 +747,7 @@ static void FillpCalPackInterval(struct FillpPcb *pcb)
     FILLP_LOGDTL("fillp_sock_id:%d, packInterval:%u, fcTime:%u, RTT:%llu, minPackInterval:%u, retransmitRTO:%llu",
         FILLP_GET_SOCKET(pcb)->index, pcb->packTimerNode.interval, pcb->FcTimerNode.interval, pcb->rtt,
         packInterval, pcb->send.retramistRto);
+    return;
 }
 
 static void FillpCalNackDelayTimeByPackInterval(struct FillpPcb *pcb)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -12,6 +12,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+#ifdef FILLP_LINUX
+#include <errno.h>
+#endif
 
 #include "epoll_app.h"
 #include "spunge_app.h"
@@ -34,10 +38,11 @@ struct SockOsSocket *SpungeAllocSystemSocket(FILLP_INT domain, FILLP_INT type, F
     osSock = (struct SockOsSocket *)SpungeAlloc(1, sizeof(struct SockOsSocket), SPUNGE_ALLOC_TYPE_CALLOC);
     if (osSock == FILLP_NULL_PTR) {
         FILLP_LOGERR("Failed to allocate memory for os socket \r\n");
+
         return FILLP_NULL_PTR;
     }
 
-    osSock->reference = 0;
+    osSock->refrence = 0;
     osSock->addrType = domain;
 
     osSock->ioSock = SysIoSocketFactory(domain, type, protocol);
@@ -101,6 +106,8 @@ static void SpungeEpollFreeResource(struct FtSocket *sock)
     (void)SYS_ARCH_ATOMIC_SET(&sock->sendEvent, 0);
     (void)SYS_ARCH_ATOMIC_SET(&sock->sendEventCount, 0);
     sock->errEvent = 0;
+
+    return;
 }
 
 void SpungeFreeAcceptBox(struct FtSocket *sock)
@@ -135,6 +142,8 @@ void SpungeIncFreeCntPostEagain(struct FtSocket *sock)
         FILLP_LOGERR("FAILED TO POST -- MSG_TYPE_FREE_SOCK_EAGAIN--- to CORE."
             "Socket leak can happen : Sock ID: %d\r\n", sock->index);
     }
+
+    return;
 }
 
 static void RecursiveRbTree(struct RbNode *node)
@@ -147,6 +156,7 @@ static void RecursiveRbTree(struct RbNode *node)
 
     if (node == FILLP_NULL_PTR) {
         FILLP_LOGERR("RecursiveRbTree: Inavild parameters passed.");
+
         return;
     }
 
@@ -180,13 +190,15 @@ static void RecursiveRbTree(struct RbNode *node)
     if (right != FILLP_NULL_PTR) {
         RecursiveRbTree(right);
     }
+
+    return;
 }
 
 /*
  * @Description : Closes the epoll socket and releases all associated resources.
  * @param : epoll ft sock index
  * @return : success: ERR_OK  fail: error code
- * @NOTE: caller must have acquired (wait) the close semaphore to protect from MT scenarios. this
+ * @NOTE: caller must have aquired (wait )the close semaphore to protect from MT scenarios. this
  * function on completion will post the event back to semaphore once execution is completed.
  */
 void SpungEpollClose(struct FtSocket *sock)
@@ -232,8 +244,8 @@ void SpungEpollClose(struct FtSocket *sock)
     (void)SYS_ARCH_RWSEM_WRPOST(&sock->sockConnSem);
 
     (void)FillpQueuePush(g_spunge->sockTable->freeQueqe, (void *)&sock, FILLP_FALSE, 1);
+    return;
 }
-
 static void SpungeCloseCBSocket(struct FtSocket *sock)
 {
     if ((FILLP_SOCKETCLOSE_CBK != FILLP_NULL_PTR) && (sock->isListenSock == FILLP_FALSE) &&
@@ -300,6 +312,8 @@ void SpungeFreeSock(struct FtSocket *sock)
 
     (void)FillpQueuePush(g_spunge->sockTable->freeQueqe, (void *)&sock, FILLP_FALSE, 1);
     (void)SYS_ARCH_RWSEM_WRPOST(&sock->sockConnSem);
+
+    return;
 }
 
 void SpungeShutdownSock(void *argSock, FILLP_INT how)
@@ -333,7 +347,8 @@ void SpungeShutdownSock(void *argSock, FILLP_INT how)
     }
 }
 
-FILLP_BOOL SpungeConnCheckUnsendBoxEmpty(struct FtNetconn *conn)
+
+int SpungeConnCheckUnsendBoxEmpty(struct FtNetconn *conn)
 {
     FILLP_ULLONG con;
     FILLP_ULLONG prod;
@@ -354,7 +369,7 @@ FILLP_BOOL SpungeConnCheckUnsendBoxEmpty(struct FtNetconn *conn)
     con = unsendBox->ring.cons.head + 1;
     prod = unsendBox->ring.prod.tail;
 
-    while ((prod >= con) && ((FILLP_LLONG)(prod - con)) >= 0) {
+    while (((FILLP_LLONG)(prod - con)) >= 0) {
         data = unsendBox->ring.ringCache[con % unsendBox->ring.size];
         con++;
 
@@ -372,7 +387,7 @@ FILLP_BOOL SpungeConnCheckUnsendBoxEmpty(struct FtNetconn *conn)
     return FILLP_TRUE;
 }
 
-static int SpungeDestroyNoWait(struct FillpPcb *pcb, struct FtSocket *sock, struct FtNetconn *conn)
+static int SpungeDestoryNoWait(struct FillpPcb *pcb, struct FtSocket *sock, struct FtNetconn *conn)
 {
 #if FILLP_DEFAULT_DESTROY_STACK_WITHOUT_WAIT_SOCKET_CLOSE
     /* for miracast, ignore the unSend unAck and unRecv packets, skip the disconnection flow,
@@ -416,7 +431,7 @@ void SpungeCheckDisconn(void *argConn)
             goto TIMER_REPEAT;
         }
 
-        if (SpungeDestroyNoWait(pcb, sock, conn) != 0) {
+        if (SpungeDestoryNoWait(pcb, sock, conn) != 0) {
             return;
         }
         /* Check if all send data are sent out */
@@ -436,7 +451,7 @@ void SpungeCheckDisconn(void *argConn)
         FillpNetconnSetState(conn, CONN_STATE_CLOSING);
         pcb->finCheckTimer.interval =
             (FILLP_UINT32)FILLP_UTILS_MS2US((FILLP_LLONG)sock->resConf.common.disconnectRetryTimeout);
-    } else if (SpungeDestroyNoWait(pcb, sock, conn) != 0) {
+    } else if (SpungeDestoryNoWait(pcb, sock, conn) != 0) {
         return;
     }
 
@@ -446,6 +461,7 @@ void SpungeCheckDisconn(void *argConn)
 
 TIMER_REPEAT:
     FillpEnableFinCheckTimer(pcb);
+    return;
 }
 
 void SpungeSendConnectMsg(void *argConn)
@@ -495,6 +511,8 @@ void SpungeSendConnectMsg(void *argConn)
         FILLP_PKT_TYPE_CONN_REQ, (void *)osSock->ioSock, (void *)conn->pcb, FILLP_NULL_PTR) == -1) {
         FILLP_LOGINF("send conn req fail for sockId:%d", sock->index);
     }
+
+    return;
 }
 
 void SpinstAddToPcbList(struct SpungeInstance *inst, struct HlistNode *node)
@@ -515,13 +533,14 @@ FillpQueue *SpungeAllocUnsendBox(struct SpungeInstance *inst)
 void SpungeFreeUnsendBox(struct FillpPcb *pcb)
 {
     FILLP_UNUSED_PARA(pcb);
+    return;
 }
 
 /* This function is called when the connection is sure closed
     For : 1) close() involked and rst send out
           2) recved rst from peer
           3) disconnect send out and disconn recved (local and peer send disconnect both)
-          if close() involked, the recv box data will be dropped, or the recv() still returns positive if data remains,
+          if close() involked, the recv box data will be droped, or the recv() still returns positive if data remains,
           return 0 if all data taken
  */
 void SpungeConnClosed(struct FtNetconn *conn)

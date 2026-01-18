@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -15,6 +15,10 @@
 
 #ifndef FILLP_LF_RING_H
 #define FILLP_LF_RING_H
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+
 #include "utils.h"
 
 #ifdef __cplusplus
@@ -45,7 +49,7 @@ struct FillpLfRing {
     FILLP_BOOL prodSafe;
     FILLP_BOOL consSafe;
     FILLP_UINT8 padd[6];
-    /* Should be last element of the structure. DO NOT reorder or change */
+    /* Should be last element of the structure. dont reorder or change */
     void *ringCache[1]; /* Data */
 };
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2021 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -34,16 +34,9 @@ typedef enum {
     CONNECT_TYPE_MAX,
 } ConnectType;
 
-typedef enum {
-    DEVICE_32_BITS = 32,
-    DEVICE_64_BITS = 64,
-} DeviceType;
-
 #define P2P_DEV_NAME_PRE "p2p"
 #define WLAN_DEV_NAME_PRE "wlan"
-#ifndef ETH_DEV_NAME_PRE
 #define ETH_DEV_NAME_PRE "eth"
-#endif
 #define USB_DEV_NAME_PRE "rndis"
 #define WIFI_DIRECT_NAME "Wi-Fi Direct"
 #define INTERFCAE_NAME_MAX_LENGTH (128 + 4)
@@ -62,6 +55,5 @@ NSTACKX_EXPORT int32_t GetConnectionType(const uint32_t sourceIp, const uint32_t
 NSTACKX_EXPORT int32_t BindToTargetDev(SocketDesc sockfd, const char *targetInterfaceName);
 NSTACKX_EXPORT int32_t GetInterfaceNameByIP(uint32_t sourceIp, char *interfaceName, size_t nameLen);
 NSTACKX_EXPORT void BindToDevInTheSameLan(SocketDesc sockfd, const struct sockaddr_in *sockAddr);
-NSTACKX_EXPORT uint8_t DFileGetDeviceBits(void);
 
 #endif // NSTACKX_DEV_H

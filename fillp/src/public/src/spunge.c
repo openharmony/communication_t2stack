@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -59,12 +59,15 @@ void SpungeEpollEventCallback(struct FtSocket *sock, FILLP_INT event, FILLP_INT 
             EpollEventCallback(sock, (FILLP_UINT32)event);
         }
     }
+    return;
 }
 
 void SockSetOsSocket(struct FtSocket *ftSock, struct SockOsSocket *osSock)
 {
     ftSock->netconn->osSocket[SPUNGE_GET_CUR_INSTANCE()->instIndex] = osSock;
-    osSock->reference++;
+    osSock->refrence++;
+
+    return;
 }
 
 #ifdef __cplusplus

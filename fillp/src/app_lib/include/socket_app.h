@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -16,6 +16,7 @@
 #ifndef SOCKET_APP_H
 #define SOCKET_APP_H
 
+#include "fillpinc.h"
 #include "sockets.h"
 #include "socket_common.h"
 
@@ -92,7 +93,7 @@ struct msghdr {
 
 FILLP_INT SockEventInfoGet(int s, FtEventCbkInfo *info);
 
-#define SOCK_DESTROY_CONN(lock, conn, sock, err) \
+#define SOCK_DESTORY_CONN(lock, conn, sock, err) \
 do { \
     (void)SYS_ARCH_RWSEM_RDPOST(lock); \
     FillpNetconnDestroy(conn); \

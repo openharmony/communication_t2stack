@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -168,7 +168,6 @@ typedef unsigned long DWORD;
 #define FILLP_SOCK_CQE_PARAMS 0x8
 #define FILLP_SOCK_MIRACAST_VIDEO_PARAMS 0x9
 #define FILLP_SEMI_RELIABLE 0xa
-#define FILLP_SOCK_TRAFFIC 0x10
 
 #define FILLP_IPV6_ADDR_LEN 4
 
@@ -259,9 +258,7 @@ struct SpungeEpollEvent {
  * @par Marcos
  */
 #if !defined(FILLP_LW_LITEOS)
-#if !defined(FILLP_TYPES_ERR_OK_INVALID)
 #define ERR_OK 0
-#endif
 #endif
 #define FILLP_OK ERR_OK
 #define FILLP_NULL 0
@@ -580,41 +577,8 @@ struct FrameInfo {
  * the event type
  */
 typedef enum {
-    FT_EVT_FRAME_STATS,
-    FT_EVT_TRAFFIC_DATA,
     FT_EVT_MAX,
 } FtEnumEventType;
-
-typedef enum {
-    FILLP_FRAME_COST_LT10MS = 0,
-    FILLP_FRAME_COST_LT30MS,
-    FILLP_FRAME_COST_LT50MS,
-    FILLP_FRAME_COST_LT75MS,
-    FILLP_FRAME_COST_LT100MS,
-    FILLP_FRAME_COST_LT120MS,
-    FILLP_FRAME_COST_GE120MS,
-    FILLP_FRAME_COST_MAX,
-} FillpFrameCost;
-
-typedef enum {
-    FILLP_FRAME_BIT_RATE_LT3M = 0,
-    FILLP_FRAME_BIT_RATE_LT6M,
-    FILLP_FRAME_BIT_RATE_LT10M,
-    FILLP_FRAME_BIT_RATE_LT20M,
-    FILLP_FRAME_BIT_RATE_LT30M,
-    FILLP_FRAME_BIT_RATE_GE30M,
-    FILLP_FRAME_BIT_RATE_MAX,
-} FillpFrameBitRate;
-
-typedef struct {
-    FILLP_UINT32 costTimeStatsCnt[FILLP_FRAME_COST_MAX];
-    FILLP_UINT32 sendBitRateStatsCnt[FILLP_FRAME_BIT_RATE_MAX];
-} FillpFrameSendStats;
-
-#define FILLP_TRAFFIC_LEN 32
-typedef struct {
-    FILLP_UCHAR stats[FILLP_TRAFFIC_LEN];
-} FillpTrafficInfo;
 
 /**
  * Structure of event callback information.
@@ -622,92 +586,9 @@ typedef struct {
 typedef struct {
     FtEnumEventType evt;
     union {
-        FillpFrameSendStats frameSendStats;
-        FillpTrafficInfo trafficData;
         FILLP_UINT32 reserved;
     } info;
 } FtEventCbkInfo;
-
-/**
- * @ingroup fillpevt
- * @brief  This callback is used to info APP when some events occur.
- *
- * @param[in] fd    Indicates a socket created by the FtSocket API.
- * @param[in] info  Pointer to event callback information FtEventCbkInfo.
- *
- * @return
- * On Success : returns 0
- * On Failure : returns -1
- */
-typedef FILLP_INT (*FillpEvtCbkFunc)(IN FILLP_INT fd, IN FILLP_CONST FtEventCbkInfo *info);
-
-#define FILLP_DFX_EVENT_NAME_LEN 33
-
-typedef enum {
-    FILLP_DFX_EVENT_TYPE_FAULT,
-    FILLP_DFX_EVENT_TYPE_STATISTIC,
-    FILLP_DFX_EVENT_TYPE_SECURITY,
-    FILLP_DFX_EVENT_TYPE_BEHAVIOR,
-} FillpDfxEvtType;
-
-typedef enum {
-    FILLP_DFX_EVENT_LEVEL_CRITICAL,
-    FILLP_DFX_EVENT_LEVEL_MINOR,
-} FillpDfxEventLevel;
-
-typedef enum {
-    FILLP_DFX_PARAM_TYPE_BOOL,
-    FILLP_DFX_PARAM_TYPE_UINT8,
-    FILLP_DFX_PARAM_TYPE_UINT16,
-    FILLP_DFX_PARAM_TYPE_INT32,
-    FILLP_DFX_PARAM_TYPE_UINT32,
-    FILLP_DFX_PARAM_TYPE_UINT64,
-    FILLP_DFX_PARAM_TYPE_FLOAT,
-    FILLP_DFX_PARAM_TYPE_DOUBLE,
-    FILLP_DFX_PARAM_TYPE_STRING
-} FillpDfxEventParamType;
-
-typedef struct {
-    FillpDfxEventParamType type;
-    FILLP_CHAR paramName[FILLP_DFX_EVENT_NAME_LEN];
-    union {
-        FILLP_UINT8 u8v;
-        FILLP_UINT16 u16v;
-        FILLP_INT32 i32v;
-        FILLP_UINT32 u32v;
-        FILLP_ULLONG u64v;
-        float f;
-        double d;
-        FILLP_CHAR str[FILLP_DFX_EVENT_NAME_LEN];
-    } val;
-} FillpDfxEventParam;
-
-typedef struct {
-    FILLP_CHAR eventName[FILLP_DFX_EVENT_NAME_LEN];
-    FillpDfxEvtType type;
-    FillpDfxEventLevel level;
-    FILLP_UINT32 paramNum;
-    FillpDfxEventParam *paramArray;
-} FillpDfxEvent;
-
-/**
- * @ingroup fillpevt
- * @brief  report dstream event
- *
- * @param[in] softObj   any useful message to FillpDfxEventCb
- * @param[in]    info   event detail
- */
-typedef void (*FillpDfxEventCb)(void *softObj, const FillpDfxEvent *info);
-
-/**
- * @ingroup fillpevt
- * @brief  function to printf data.
- *
- * @param[in] softObj   any useful message to FillpDfxDumpFunc
- * @param[in]    data   dump string to print
- * @param[in]     len   lenth of data
- */
-typedef void (*FillpDfxDumpFunc)(void *softObj, const FILLP_CHAR *data, FILLP_UINT32 len);
 
 #ifdef __cplusplus
 }

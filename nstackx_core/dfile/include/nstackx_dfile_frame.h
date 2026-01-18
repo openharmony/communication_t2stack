@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2021 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -16,6 +16,9 @@
 #ifndef NSTACKX_DFILE_FRAME_H
 #define NSTACKX_DFILE_FRAME_H
 
+#include <stdint.h>
+#include <time.h>
+#include "nstackx_list.h"
 #include "nstackx_file_list.h"
 #include "nstackx_congestion.h"
 
@@ -65,7 +68,6 @@ typedef enum {
     NSTACKX_DFILE_RST_FRAME,
     NSTACKX_DFILE_FLOW_CONTROL_FRAME,
     NSTACKX_DFILE_CONGESTION_CONTROL_FRAME,
-    NSTACKX_DFILE_PEER_DOWN_FRAME,
     NSTACKX_DFILE_FILE_BACK_PRESSURE_FRAME,
     NSTACKX_DFILE_TYPE_MAX
 } DFileFrameType;
@@ -129,13 +131,12 @@ typedef struct {
     uint16_t fileId;
     uint32_t blockSequence;
     uint32_t linkSequence;
-    uint8_t socketIndex;
     uint8_t blockPayload[0];
 } FileDataFrameZS;
 
 typedef struct {
     uint8_t recvListOverIo;
-    uint8_t recvBufThreshold; /* for reserved */
+    uint8_t recvBufThreshold; /* for reserve */
     uint32_t stopSendPeriod;
 } DataBackPressure;
 
@@ -154,7 +155,6 @@ typedef struct {
     uint16_t fileId[0];
 } FileTransferDoneAckFrame;
 
-#define VERSION_STR_LEN 64
 typedef struct {
     DFileFrameHeader header;
     uint16_t mtu;
@@ -164,13 +164,6 @@ typedef struct {
     uint32_t capability;
     uint32_t dataFrameSize;
     uint32_t capsCheck;
-    char productVersion[VERSION_STR_LEN]; /* DFX */
-    uint8_t isSupport160M;
-    uint8_t isSupportMtp;
-    uint8_t mtpPort;
-    uint8_t headerEnc;
-    uint32_t mtpCapability;
-    uint32_t cipherCapability;
 } SettingFrame;
 
 typedef struct {
@@ -182,7 +175,6 @@ typedef struct {
 typedef struct {
     DFileFrameHeader header;
     WifiStationInfo wifiStationInfo;
-    RamInfo ramInfo;
 } CongestionControlFrame;
 #pragma pack(pop)
 

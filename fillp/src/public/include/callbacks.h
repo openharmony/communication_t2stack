@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -15,7 +15,7 @@
 
 #ifndef CALLBACKS_H
 #define CALLBACKS_H
-
+#include "fillpinc.h"
 #include "fillp_os.h"
 
 #ifdef FILLP_MAC
@@ -60,7 +60,7 @@ void *FillpMemCalloc(IN FILLP_UINT32 nitems, IN FILLP_UINT32 size);
 /*******************************************************************************
     Adption     : FillpMemAlloc
 
-    Description : Adp Adption if user has not registered the callback for malloc
+    Description : Adp Adption if user has not registered the callbacl for malloc
 
     Input         :
                     size: Requested size to be allocated
@@ -358,7 +358,7 @@ FILLP_INT FillpFuncSendTo(
 /*******************************************************************************
     Function     : FillpFuncRecvFrom
 
-    Description : Adp function if user has not registered the receive from callback function
+    Description : Adp function if user has not registered the recieve from callback function
  *******************************************************************************/
 FILLP_INT  FillpFuncRecvFrom(
     IN FILLP_INT sockFd,

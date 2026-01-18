@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2021 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -14,6 +14,7 @@
  */
 
 #include "nstackx_dev.h"
+#include "nstackx_util.h"
 #include "nstackx_error.h"
 #include "nstackx_log.h"
 #include "securec.h"
@@ -39,13 +40,4 @@ int32_t GetConnectionType(const uint32_t sourceIp, const uint32_t destinationIp,
         return NSTACKX_EOK;
     }
     return GetConnectionTypeByDev(sourceIp, connectType);
-}
-
-uint8_t DFileGetDeviceBits(void)
-{
-    if (TYPE_BITS_NUM(char *) == DEVICE_32_BITS) {
-        return DEVICE_32_BITS;
-    }
-
-    return DEVICE_64_BITS;
 }

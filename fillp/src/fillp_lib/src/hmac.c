@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -43,18 +43,17 @@ Return         : NA
 ******************************************************************************/
 static void FillpCleanSedata(void *ptr, size_t len, struct SpungeInstance *pcbInst)
 {
-    if (ptr == FILLP_NULL_PTR) {
-        return;
-    }
-
     FILLP_UINT8 *pptr = ptr;
     size_t loop = len;
     size_t ctr = pcbInst->cleanseDataCtr;
 
-    while (loop > 0) {
+    if (ptr == FILLP_NULL_PTR) {
+        return;
+    }
+
+    while (loop--) {
         *(pptr++) = (FILLP_UINT8)ctr;
         ctr += (CSE_DATA_ONE_PAR + ((size_t)(uintptr_t)pptr & 0xF));
-        loop--;
     }
 
     pptr = FILLP_MEMCHR(ptr, (FILLP_UINT8)ctr, len);
@@ -63,6 +62,8 @@ static void FillpCleanSedata(void *ptr, size_t len, struct SpungeInstance *pcbIn
     }
 
     pcbInst->cleanseDataCtr = (FILLP_UINT8)ctr;
+
+    return;
 }
 
 void FillpHmacSha256Init(OUT FillpHmacSha256 ctx[1], IN FILLP_UINT8 *key, FILLP_UINT32 klen,
@@ -121,6 +122,8 @@ void FillpHmacSha256Init(OUT FillpHmacSha256 ctx[1], IN FILLP_UINT8 *key, FILLP_
     FillpCleanSedata((void *)tk, sizeof(tk), pcbInst);
     FillpCleanSedata((void *)keyIpad, sizeof(keyIpad), pcbInst);
     FillpCleanSedata((void *)keyOpad, sizeof(keyOpad), pcbInst);
+
+    return;
 }
 
 
@@ -144,6 +147,8 @@ void FillpHmacSha256Update(IO FillpHmacSha256 ctx[1], FILLP_CONST FILLP_UINT8 *d
     } else {
         FillpSha256Upd(tempCtx->hashki, data, dlen);
     }
+
+    return;
 }
 
 void FillpHmacSha256Final(IO FillpHmacSha256 ctx[1],
@@ -163,6 +168,8 @@ void FillpHmacSha256Final(IO FillpHmacSha256 ctx[1],
     FillpSha256Fin(tempCtx->hashki, digest, size);
     FillpSha256Upd(tempCtx->hashko, digest, size);
     FillpSha256Fin(tempCtx->hashko, digest, size);
+
+    return;
 }
 
 

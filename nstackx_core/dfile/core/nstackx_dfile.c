@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2021 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -16,13 +16,12 @@
 #include "nstackx_dfile.h"
 #include "nstackx_util.h"
 #include "nstackx_event.h"
-#include "nstackx_dfile_log.h"
+#include "nstackx_log.h"
 #include "nstackx_epoll.h"
 #include "nstackx_dfile_session.h"
 #include "nstackx_dfile_config.h"
 #include "nstackx_dfile_mp.h"
 #include "nstackx_congestion.h"
-#include "nstackx_dfile_dfx.h"
 #ifdef MBEDTLS_INCLUDED
 #include "nstackx_mbedtls.h"
 #else
@@ -31,9 +30,6 @@
 #include "nstackx_dfile_private.h"
 #include "securec.h"
 #include "nstackx_socket.h"
-#ifdef DFILE_ENABLE_HIDUMP
-#include "nstackx_getopt.h"
-#endif
 
 #define TAG "nStackXDFile"
 #define Coverity_Tainted_Set(pkt)
@@ -43,13 +39,21 @@
 
 /* this lock will been destroy only when process exit. */
 static pthread_mutex_t g_dFileSessionIdMutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t g_dFileSessionChainMutex = PTHREAD_MUTEX_INITIALIZER;
-List g_dFileSessionChain = {&(g_dFileSessionChain), &(g_dFileSessionChain)};
+static pthread_mutex_t g_dFileSessionChainMutex = PTHREAD_MUTEX_INITIALIZER;
+static List g_dFileSessionChain = {&(g_dFileSessionChain), &(g_dFileSessionChain)};
 static uint16_t g_dFileSessionId = 0;
+static int32_t g_sockRecvBufLen;
+static int32_t g_sockSendBufLen;
 /* currently enabled capabilities */
 static uint32_t g_capabilities = NSTACKX_CAPS_WLAN_CATAGORY;
 /* wlan catagory from APP */
 static uint32_t g_wlanCatagory = NSTACKX_WLAN_CAT_TCP;
+
+typedef struct DFileSessionNode {
+    List list;
+    uint16_t sessionId;
+    DFileSession *session;
+} DFileSessionNode;
 
 typedef struct {
     DFileSession *session;
@@ -60,11 +64,6 @@ typedef struct {
     DFileSession *session;
     OnDFileRenameFile onRenameFile;
 } DFileSetRenameHookCtx;
-
-typedef struct {
-    DFileSession *session;
-    FileListInfo *fileListInfo;
-} DFileSendFileCtx;
 
 static int32_t GetDFileSessionId(uint16_t *sessionId)
 {
@@ -90,17 +89,13 @@ static int32_t GetDFileSessionId(uint16_t *sessionId)
     return NSTACKX_EOK;
 }
 
-#ifdef DFILE_ENABLE_HIDUMP
-DFileSessionNode *GetDFileSessionNodeById(uint16_t sessionId)
-#else
 static DFileSessionNode *GetDFileSessionNodeById(uint16_t sessionId)
-#endif
 {
     List *pos = NULL;
     DFileSessionNode *node = NULL;
     uint8_t isFound = NSTACKX_FALSE;
     if (PthreadMutexLock(&g_dFileSessionChainMutex) != 0) {
-        DFILE_LOGE(TAG, "lock g_dFileSessionChainMutex failed");
+        LOGE(TAG, "lock g_dFileSessionChainMutex failed");
         return NULL;
     }
     LIST_FOR_EACH(pos, &g_dFileSessionChain) {
@@ -111,7 +106,7 @@ static DFileSessionNode *GetDFileSessionNodeById(uint16_t sessionId)
         }
     }
     if (PthreadMutexUnlock(&g_dFileSessionChainMutex) != 0) {
-        DFILE_LOGE(TAG, "unlock g_dFileSessionChainMutex failed");
+        LOGE(TAG, "unlock g_dFileSessionChainMutex failed");
         return NULL;
     }
     if (isFound) {
@@ -130,13 +125,13 @@ static int32_t AddDFileSessionNode(DFileSession *session)
     node->session = session;
     node->sessionId = session->sessionId;
     if (PthreadMutexLock(&g_dFileSessionChainMutex) != 0) {
-        DFILE_LOGE(TAG, "lock g_dFileSessionChainMutex failed");
+        LOGE(TAG, "lock g_dFileSessionChainMutex failed");
         free(node);
         return NSTACKX_EFAILED;
     }
     ListInsertTail(&g_dFileSessionChain, &node->list);
     if (PthreadMutexUnlock(&g_dFileSessionChainMutex) != 0) {
-        DFILE_LOGE(TAG, "unlock g_dFileSessionChainMutex failed");
+        LOGE(TAG, "unlock g_dFileSessionChainMutex failed");
         ListRemoveNode(&node->list);
         free(node);
         return NSTACKX_EFAILED;
@@ -151,7 +146,7 @@ static DFileSessionNode *PopDFileSessionNodeById(uint16_t sessionId)
     List *tmp = NULL;
     uint8_t isFound = NSTACKX_FALSE;
     if (PthreadMutexLock(&g_dFileSessionChainMutex) != 0) {
-        DFILE_LOGE(TAG, "lock g_dFileSessionChainMutex failed");
+        LOGE(TAG, "lock g_dFileSessionChainMutex failed");
         return NULL;
     }
     LIST_FOR_EACH_SAFE(pos, tmp, &g_dFileSessionChain) {
@@ -163,7 +158,7 @@ static DFileSessionNode *PopDFileSessionNodeById(uint16_t sessionId)
         }
     }
     if (PthreadMutexUnlock(&g_dFileSessionChainMutex) != 0) {
-        DFILE_LOGE(TAG, "unlock g_dFileSessionChainMutex failed");
+        LOGE(TAG, "unlock g_dFileSessionChainMutex failed");
         if (node != NULL) {
             ListInsertTail(&g_dFileSessionChain, &node->list);
         }
@@ -210,7 +205,7 @@ static void DFileSetStoragePathInner(void *arg)
     }
 
     if (FileManagerSetWritePath(ctx->session->fileManager, ctx->path) != NSTACKX_EOK) {
-        DFILE_LOGE(TAG, "filemanager set write path failed");
+        LOGE(TAG, "filemanager set write path failed");
     }
     free(ctx->path);
     free(ctx);
@@ -220,13 +215,13 @@ static int32_t CheckSetStoragePathPara(int32_t sessionId, const char *path)
 {
     size_t len;
     if (CheckSessionIdValid(sessionId) != NSTACKX_EOK || path == NULL) {
-        DFILE_LOGE(TAG, "invalid arg input");
+        LOGE(TAG, "invalid arg input");
         return NSTACKX_EINVAL;
     }
 
     len = strlen(path);
     if (len == 0 || len > NSTACKX_MAX_PATH_LEN) {
-        DFILE_LOGE(TAG, "Invalid path name length");
+        LOGE(TAG, "Invalid path name length");
         return NSTACKX_EINVAL;
     }
     return NSTACKX_EOK;
@@ -246,7 +241,7 @@ int32_t NSTACKX_DFileSetStoragePath(int32_t sessionId, const char *path)
 
     DFileSessionNode *node = GetDFileSessionNodeById((uint16_t)sessionId);
     if (CheckDFileSessionNodeValid(node) != NSTACKX_EOK) {
-        DFILE_LOGE(TAG, "no session found for id %d", sessionId);
+        LOGE(TAG, "no session found for id %d", sessionId);
         return NSTACKX_EINVAL;
     }
 
@@ -258,13 +253,13 @@ int32_t NSTACKX_DFileSetStoragePath(int32_t sessionId, const char *path)
     /* When second parameter is NULL, realpath() uses malloc() to allocate a buffer of up to PATH_MAX bytes. */
     ctx->path = realpath(path, NULL);
     if (ctx->path == NULL) {
-        DFILE_LOGE(TAG, "can't get canonicalized absolute pathname");
+        LOGE(TAG, "can't get canonicalized absolute pathname");
         free(ctx);
         return NSTACKX_EFAILED;
     }
 
     if (!IsAccessiblePath(ctx->path, W_OK, S_IFDIR)) {
-        DFILE_LOGE(TAG, "the input path isn't a valid writable folder");
+        LOGE(TAG, "the input path isn't a valid writable folder");
         free(ctx->path);
         free(ctx);
         return NSTACKX_EFAILED;
@@ -294,6 +289,7 @@ static uint8_t HasRepeatedNumber(const uint16_t *data, uint16_t len)
     }
     return NSTACKX_FALSE;
 }
+
 
 typedef struct {
     DFileSession *session;
@@ -344,7 +340,7 @@ DFileSetStoragePathListCtx *CreateStoragePathListCtx(const DFileSession *session
     uint16_t i, pos;
 
     if (pathNum > NSTACKX_MAX_STORAGE_PATH_NUM) {
-        DFILE_LOGE(TAG, "invalid pathNum");
+        LOGE(TAG, "invalid pathNum");
         return NULL;
     }
 
@@ -357,12 +353,12 @@ DFileSetStoragePathListCtx *CreateStoragePathListCtx(const DFileSession *session
         /* When second parameter is NULL, realpath() uses malloc() to allocate a buffer of up to PATH_MAX bytes. */
         ctx->pathList[i] = realpath(path[i], NULL);
         if (ctx->pathList[i] == NULL) {
-            DFILE_LOGE(TAG, "can't get canonicalized absolute pathname");
+            LOGE(TAG, "can't get canonicalized absolute pathname");
             pos = i;
             goto L_ERR;
         }
         if (!IsAccessiblePath(ctx->pathList[i], W_OK, S_IFDIR)) {
-            DFILE_LOGE(TAG, "the input path isn't a valid writable folder");
+            LOGE(TAG, "the input path isn't a valid writable folder");
             pos = i + 1;
             goto L_ERR;
         }
@@ -387,12 +383,12 @@ static int32_t CheckSetStoragePathListPara(int32_t sessionId, const char *path[]
 {
     if (CheckSessionIdValid(sessionId) != NSTACKX_EOK || path == NULL || pathType == NULL || pathNum == 0 ||
         pathNum > NSTACKX_MAX_STORAGE_PATH_NUM) {
-        DFILE_LOGE(TAG, "invalid arg input");
+        LOGE(TAG, "invalid arg input");
         return NSTACKX_EINVAL;
     }
 
     if (HasRepeatedNumber(pathType, pathNum)) {
-        DFILE_LOGE(TAG, "has repeated type");
+        LOGE(TAG, "has repeated type");
         return NSTACKX_EINVAL;
     }
     return NSTACKX_EOK;
@@ -415,7 +411,7 @@ int32_t NSTACKX_DFileSetStoragePathList(int32_t sessionId, const char *path[], c
 
     DFileSessionNode *node = GetDFileSessionNodeById((uint16_t)sessionId);
     if (CheckDFileSessionNodeValid(node) != NSTACKX_EOK) {
-        DFILE_LOGE(TAG, "no session found for id %d", sessionId);
+        LOGE(TAG, "no session found for id %d", sessionId);
         return NSTACKX_EINVAL;
     }
 
@@ -432,6 +428,11 @@ int32_t NSTACKX_DFileSetStoragePathList(int32_t sessionId, const char *path[], c
     }
     return NSTACKX_EOK;
 }
+
+typedef struct {
+    DFileSession *session;
+    FileListInfo *fileListInfo;
+} DFileSendFileCtx;
 
 static inline void AddFileList(DFileSession *session, FileListInfo *fileListInfo)
 {
@@ -471,12 +472,10 @@ static void DFileSendFileInner(void *arg)
     DFileSession *session = ctx->session;
     DFileMsg data;
 
-    DFileSendFileBeginEvent();
-
     (void)memset_s(&data, sizeof(data), 0, sizeof(data));
     if (session == NULL) {
         data.errorCode = NSTACKX_EINVAL;
-        DFILE_LOGE(TAG, "session is NULL");
+        LOGE(TAG, "session is NULL");
         goto L_END;
     }
 #ifdef NSTACKX_SMALL_FILE_SUPPORT
@@ -485,7 +484,7 @@ static void DFileSendFileInner(void *arg)
 #else
     uint32_t totalCnt = session->fileListProcessingCnt + session->fileListPendingCnt;
 #endif
-    DFILE_LOGI(TAG, "recv filelist fileNum %u tarFlag %hhu path %s, total %u", ctx->fileListInfo->fileNum,
+    LOGI(TAG, "recv filelist fileNum %u tarFlag %hhu path %s, total %u", ctx->fileListInfo->fileNum,
         ctx->fileListInfo->tarFlag, ctx->fileListInfo->files[0], totalCnt + 1);
     CalculateSessionTransferRatePrepare(session);
     if (session->fileListProcessingCnt + session->smallListProcessingCnt >= NSTACKX_FILE_MANAGER_THREAD_NUM) {
@@ -494,7 +493,7 @@ static void DFileSendFileInner(void *arg)
         int32_t ret = DFileStartTrans(session, ctx->fileListInfo);
         if (ret != NSTACKX_EOK) {
             data.errorCode = ret;
-            DFILE_LOGE(TAG, "DFileStartTrans fail, error: %d", ret);
+            LOGE(TAG, "DFileStartTrans fail, error: %d", ret);
             goto L_END;
         }
     }
@@ -537,19 +536,19 @@ static int32_t CheckSendFilesPara(int32_t sessionId, const char *files[], uint32
     }
 
     if (CheckFileNum(fileNum) != NSTACKX_EOK) {
-        DFILE_LOGE(TAG, "fileNum to send is 0 or too large");
+        LOGE(TAG, "fileNum to send is 0 or too large");
         return NSTACKX_EINVAL;
     }
 
     if (userData == NULL) {
         userDataLen = 0;
-        DFILE_LOGW(TAG, "send file with no user data.");
+        LOGW(TAG, "send file with no user data.");
     } else {
         userDataLen = strlen(userData);
     }
 
     if (userDataLen > NSTACKX_MAX_USER_DATA_SIZE) {
-        DFILE_LOGE(TAG, "send file with too long user data len");
+        LOGE(TAG, "send file with too long user data len");
         return NSTACKX_EINVAL;
     }
     return NSTACKX_EOK;
@@ -574,7 +573,7 @@ int32_t SendFilesInner(int32_t sessionId, const char *files[], const char *remot
 
     DFileSessionNode *node = GetDFileSessionNodeById((uint16_t)sessionId);
     if (CheckDFileSessionNodeValid(node) != NSTACKX_EOK) {
-        DFILE_LOGE(TAG, "no session found for id %d", sessionId);
+        LOGE(TAG, "no session found for id %d", sessionId);
         return NSTACKX_EINVAL;
     }
     if (RebuildFilelist(files, remotePath, fileNum, node->session, &rFilelist) != NSTACKX_EOK) {
@@ -583,7 +582,7 @@ int32_t SendFilesInner(int32_t sessionId, const char *files[], const char *remot
     for (uint16_t i = 0; i < rFilelist.transNum; i++) {
         DFileSendFileCtx *ctx = malloc(sizeof(DFileSendFileCtx));
         if (ctx == NULL) {
-            DFILE_LOGE(TAG, "malloc ctx error: NULL");
+            LOGE(TAG, "malloc ctx error: NULL");
             return NSTACKX_ENOMEM;
         }
         ctx->session = node->session;
@@ -593,7 +592,7 @@ int32_t SendFilesInner(int32_t sessionId, const char *files[], const char *remot
             NSTACKX_FALSE, &(rFilelist.startOffset[i]), &(rFilelist.fileSize[i]));
         ctx->fileListInfo = CreateFileListInfo(&para);
         if (ctx->fileListInfo == NULL) {
-            DFILE_LOGE(TAG, "CreateFileListInfo error: NULL");
+            LOGE(TAG, "CreateFileListInfo error: NULL");
             free(ctx);
             return NSTACKX_ENOMEM;
         }
@@ -637,16 +636,16 @@ static int32_t CheckSendFilesWithRemotePathPara(int32_t sessionId, const char *f
     if (CheckSessionIdValid(sessionId) != NSTACKX_EOK ||
         !IsValidStringArray(files, fileNum, NSTACKX_MAX_FILE_NAME_LEN) ||
         !IsValidStringArray(remotePath, fileNum, NSTACKX_MAX_REMOTE_PATH_LEN)) {
-        DFILE_LOGE(TAG, "invalid arg input");
+        LOGE(TAG, "invalid arg input");
         return NSTACKX_EINVAL;
     }
     if (CheckFileNum(fileNum) != NSTACKX_EOK) {
-        DFILE_LOGE(TAG, "fileNum to send is 0 or too large");
+        LOGE(TAG, "fileNum to send is 0 or too large");
         return NSTACKX_EINVAL;
     }
 
     if (userData != NULL && strlen(userData) > NSTACKX_MAX_USER_DATA_SIZE) {
-        DFILE_LOGE(TAG, "send file with too long user data len");
+        LOGE(TAG, "send file with too long user data len");
         return NSTACKX_EINVAL;
     }
     return NSTACKX_EOK;
@@ -698,7 +697,7 @@ static int32_t CheckSendFilesWithRemotePathAndType(int32_t sessionId, NSTACKX_Fi
         }
     }
     if (filesInfo->userData != NULL && strlen(filesInfo->userData) > NSTACKX_MAX_USER_DATA_SIZE) {
-        DFILE_LOGE(TAG, "send file with too long user data len");
+        LOGE(TAG, "send file with too long user data len");
         return NSTACKX_EINVAL;
     }
     return NSTACKX_EOK;
@@ -720,7 +719,7 @@ static void PostSendFailAsync(int32_t sessionId, const NSTACKX_FilesInfo *filesI
     }
     DFileSessionNode *node = GetDFileSessionNodeById((uint16_t)sessionId);
     if (CheckDFileSessionNodeValid(node) != NSTACKX_EOK) {
-        DFILE_LOGE(TAG, "no session found for id %d", sessionId);
+        LOGE(TAG, "no session found for id %d", sessionId);
         return;
     }
     DFileSendFileCtx *ctx = calloc(1, sizeof(DFileSendFileCtx));
@@ -743,7 +742,7 @@ static void PostSendFailAsync(int32_t sessionId, const NSTACKX_FilesInfo *filesI
     }
     if (memcpy_s(ctx->fileListInfo->files[0], strlen(firstFileName) + 1,
         firstFileName, strlen(firstFileName)) != NSTACKX_EOK) {
-        DFILE_LOGE(TAG, "memcpy_s failed");
+        LOGE(TAG, "memcpy_s failed");
         goto L_ERR;
     }
     if (PostEvent(&node->session->eventNodeChain, node->session->epollfd, DFileSendFileFail, ctx) == NSTACKX_EOK) {
@@ -774,14 +773,14 @@ int32_t NSTACKX_DFileSendFilesWithRemotePathAndType(int32_t sessionId, NSTACKX_F
     }
 
     if (filesInfo->tarFlag == NSTACKX_TRUE) {
-        DFILE_LOGE(TAG, "warning: tarflag is not supported now");
+        LOGE(TAG, "warning: tarflag is not supported now");
         (void)PackPrepareTar(filesInfo->remotePath[0], tarName, PATH_MAX);
         return NSTACKX_NOTSUPPORT;
     }
 
     DFileSessionNode *node = GetDFileSessionNodeById((uint16_t)sessionId);
     if (CheckDFileSessionNodeValid(node) != NSTACKX_EOK) {
-        DFILE_LOGE(TAG, "no session found for id %d", sessionId);
+        LOGE(TAG, "no session found for id %d", sessionId);
         return NSTACKX_EINVAL;
     }
 
@@ -873,12 +872,12 @@ static int32_t DFileSessionMutexInit(DFileSession *session)
     }
 
     if (MutexListInit(&session->transferDoneAckList, MAX_TRANSFERDONE_ACK_NODE_COUNT) != NSTACKX_EOK) {
-        DFILE_LOGE(TAG, "transferDoneAckList InitList error");
+        LOGE(TAG, "transferDoneAckList InitList error");
         goto L_ERR_TRANS_DONE_ACK_LOCK;
     }
 
     if (MutexListInit(&session->tranIdStateList, MAX_TRANSTATELISTSIZE) != NSTACKX_EOK) {
-        DFILE_LOGE(TAG, "tranIdStateList InitList error");
+        LOGE(TAG, "tranIdStateList InitList error");
         goto L_ERR_TRANS_STATE_LOCK;
     }
     return NSTACKX_EOK;
@@ -900,8 +899,8 @@ static inline void PostSessionCreate(DFileSession *session)
 {
     session->capability = g_capabilities;
     session->wlanCatagory = g_wlanCatagory;
-    session->cipherCapability = NSTACKX_CIPHER_AES_GCM | NSTACKX_CIPHER_CHACHA;
-    DFILE_LOGI(TAG, "current capabilities tcp:%d", CapsTcp(session));
+
+    LOGI(TAG, "current capabilities tcp:%d", CapsTcp(session));
 }
 
 static DFileSession *DFileSessionCreate(DFileSessionType type, DFileMsgReceiver msgReceiver)
@@ -914,13 +913,6 @@ static DFileSession *DFileSessionCreate(DFileSessionType type, DFileMsgReceiver 
     DFileSession *session = calloc(1, sizeof(DFileSession));
     if (session == NULL) {
         return NULL;
-    }
-
-    if (type == DFILE_SESSION_TYPE_CLIENT) {
-        DFileClientCreateEvent();
-    }
-    if (type == DFILE_SESSION_TYPE_SERVER) {
-        DFileServerCreateEvent();
     }
 
     DFileSessionBaseInit(session, type, msgReceiver, sessionId);
@@ -936,7 +928,7 @@ static DFileSession *DFileSessionCreate(DFileSessionType type, DFileMsgReceiver 
 
     session->recvBuffer = calloc(1, NSTACKX_RECV_BUFFER_LEN);
     if (session->recvBuffer == NULL) {
-        DFILE_LOGE(TAG, "can not get memory");
+        LOGE(TAG, "can not get memory");
         goto L_ERR_RECVBUFFER;
     }
 
@@ -962,7 +954,7 @@ static void DFileClearTransferDoneAckList(DFileSession *session)
     List *tmp = NULL;
     TransferDoneAckNode *transferDoneAckNode = NULL;
     if (PthreadMutexLock(&session->transferDoneAckList.lock) != 0) {
-        DFILE_LOGE(TAG, "pthread mutex lock error");
+        LOGE(TAG, "pthread mutex lock error");
         return;
     }
     LIST_FOR_EACH_SAFE(pos, tmp, &session->transferDoneAckList.head) {
@@ -972,7 +964,7 @@ static void DFileClearTransferDoneAckList(DFileSession *session)
         session->transferDoneAckList.size--;
     }
     if (PthreadMutexUnlock(&session->transferDoneAckList.lock) != 0) {
-        DFILE_LOGE(TAG, "pthread mutex unlock error");
+        LOGE(TAG, "pthread mutex unlock error");
         return;
     }
     return;
@@ -1027,20 +1019,26 @@ static int32_t DFileRecverInit(DFileSession *session, struct sockaddr_in *sockAd
 
     /* Note: If the monitoring method is not select, this restriction should be removed */
     if (CheckFdSetSize(socket->sockfd) != NSTACKX_EOK) {
-        DFILE_LOGE(TAG, "CheckFdSetSize failed");
+        LOGE(TAG, "CheckFdSetSize failed");
         CloseSocket(socket);
         return NSTACKX_EFAILED;
     }
 
     session->socket[socketIndex] = socket;
     session->protocol = protocol;
-    DFILE_LOGI(TAG, "create server socket %d protocol is %d", socket->sockfd, protocol);
+    LOGI(TAG, "create server socket %d protocol is %d", socket->sockfd, protocol);
     int32_t optVal = 0;
     socklen_t optLen = sizeof(optVal);
     if (getsockopt(socket->sockfd, SOL_SOCKET, SO_RCVBUF, (void *)&optVal, &optLen) == 0) {
-        DFILE_LOGI(TAG, "default recv buf is %d bytes", optVal);
+        LOGI(TAG, "default recv buf is %d bytes", optVal);
     }
-
+    g_sockRecvBufLen = SOCKET_RECV_BUFFER;
+    if (setsockopt(socket->sockfd, SOL_SOCKET, SO_RCVBUF, (void *)&g_sockRecvBufLen, sizeof(g_sockRecvBufLen)) != 0) {
+        LOGE(TAG, "set receiver socket recv buffer size failed");
+    }
+    if (getsockopt(socket->sockfd, SOL_SOCKET, SO_RCVBUF, (void *)&optVal, &optLen) == 0) {
+        LOGI(TAG, "recv buf is %d bytes", optVal);
+    }
     return NSTACKX_EOK;
 }
 
@@ -1055,12 +1053,12 @@ static void DFileRecverDestory(DFileSession *session)
 static int32_t StartDFileThreads(DFileSession *session)
 {
     if (CreateReceiverPipe(session) != NSTACKX_EOK) {
-        DFILE_LOGE(TAG, "Create pipe failed");
+        LOGE(TAG, "Create pipe failed");
         goto L_ERR_PIPE;
     }
 
     if (EventModuleInit(&session->eventNodeChain, session->epollfd) != NSTACKX_EOK) {
-        DFILE_LOGE(TAG, "Event module init failed!");
+        LOGE(TAG, "Event module init failed!");
         goto L_ERR_EVENT;
     }
 
@@ -1141,7 +1139,7 @@ static int32_t NSTACKX_DFileInit(void)
 
 L_ERR_CONG:
     SocketModuleClean();
-    DFILE_LOGE(TAG, "fail to create dfile server ");
+    LOGE(TAG, "fail to create dfile server ");
     return NSTACKX_EFAILED;
 }
 
@@ -1155,7 +1153,7 @@ int32_t NSTACKX_DFileServer(struct sockaddr_in *localAddr, socklen_t addrLen, co
     Coverity_Tainted_Set((void *)&keyLen);
     Coverity_Tainted_Set((void *)msgReceiver);
 
-    DFILE_LOGI(TAG, "Begin to create dfile server ");
+    LOGI(TAG, "Begin to create dfile server ");
     DFileSession *session = NULL;
     struct sockaddr_in sockAddr;
 
@@ -1196,7 +1194,7 @@ L_ERR_RECVER_INIT:
 L_ERR_SESSION:
     CongModuleClean();
     SocketModuleClean();
-    DFILE_LOGE(TAG, "fail to create dfile server ");
+    LOGE(TAG, "fail to create dfile server ");
     return NSTACKX_EFAILED;
 }
 
@@ -1209,19 +1207,23 @@ static int32_t DFileSenderInitWithTargetDev(DFileSession *session, const struct 
 
     Socket *socket = ClientSocketWithTargetDev(protocol, sockAddr, localInterface);
     if (socket == NULL) {
-        DFILE_LOGE(TAG, "socket is null");
+        LOGE(TAG, "socket is null");
         return NSTACKX_EFAILED;
     }
 
     /* Note: If the monitoring method is not select, this restriction should be removed */
     if (CheckFdSetSize(socket->sockfd) != NSTACKX_EOK) {
-        DFILE_LOGE(TAG, "CheckFdSetSize failed");
+        LOGE(TAG, "CheckFdSetSize failed");
         CloseSocket(socket);
         return NSTACKX_EFAILED;
     }
 
     session->socket[socketIndex] = socket;
     session->protocol = protocol;
+    g_sockSendBufLen = SOCKET_SEND_BUFFER;
+    if (setsockopt(socket->sockfd, SOL_SOCKET, SO_SNDBUF, (void *)&g_sockSendBufLen, sizeof(g_sockSendBufLen)) != 0) {
+        LOGE(TAG, "set sender socket send buffer size failed");
+    }
 
     if (CapsTcp(session)) {
         SetTcpKeepAlive(socket->sockfd);
@@ -1230,12 +1232,12 @@ static int32_t DFileSenderInitWithTargetDev(DFileSession *session, const struct 
     int32_t ret = GetConnectionType(socket->srcAddr.sin_addr.s_addr, socket->dstAddr.sin_addr.s_addr,
                                     connType);
     if (ret != NSTACKX_EOK) {
-        DFILE_LOGE(TAG, "get connect type failed, ret = %d", ret);
+        LOGE(TAG, "get connect type failed, ret = %d", ret);
         goto L_ERR_PEER_INFO;
     }
     if ((*connType != CONNECT_TYPE_P2P && *connType != CONNECT_TYPE_WLAN)) {
         *connType = CONNECT_TYPE_WLAN;
-        DFILE_LOGI(TAG, "connet type isn't wlan or p2p, and will be set to wlan by default");
+        LOGI(TAG, "connet type isn't wlan or p2p, and will be set to wlan by default");
     }
     PeerInfo *peerInfo = CreatePeerInfo(session, &socket->dstAddr, 0, *connType, socketIndex);
     if (peerInfo == NULL) {
@@ -1282,6 +1284,8 @@ static uint16_t GetClientSendThreadNum(uint16_t connType)
 {
     if (connType == CONNECT_TYPE_WLAN) {
         return NSTACKX_WLAN_CLIENT_SEND_THREAD_NUM;
+    } else if (connType == CONNECT_TYPE_P2P) {
+        return 1;
     } else {
         return 1;
     }
@@ -1318,7 +1322,7 @@ int32_t NSTACKX_DFileClientWithTargetDev(NSTACKX_SessionPara *para)
     /* EaglEye test */
     Coverity_Tainted_Set((void *)para);
 
-    DFILE_LOGI(TAG, "begin to Create Dfile client");
+    LOGI(TAG, "begin to Create Dfile client");
     struct sockaddr_in sockAddr;
 
     if (CheckSessionPara(para) != NSTACKX_EOK) {
@@ -1363,7 +1367,7 @@ L_ERR_SESSION:
     CongModuleClean();
 L_ERR_CONG:
     SocketModuleClean();
-    DFILE_LOGE(TAG, "fail to create dfile client");
+    LOGE(TAG, "fail to create dfile client");
     return NSTACKX_EFAILED;
 }
 
@@ -1454,15 +1458,15 @@ void NSTACKX_DFileClose(int32_t sessionId)
     /* EaglEye test */
     Coverity_Tainted_Set((void *)&sessionId);
 
-    DFILE_LOGI(TAG, "begin to close session");
+    LOGI(TAG, "begin to close session");
     if (CheckSessionIdValid(sessionId) != NSTACKX_EOK) {
-        DFILE_LOGE(TAG, "invalid session id (%d) for close", sessionId);
+        LOGE(TAG, "invalid session id (%d) for close", sessionId);
         return;
     }
 
     DFileSessionNode *sessionNode = PopDFileSessionNodeById((uint16_t)sessionId);
     if (CheckDFileSessionNodeValid(sessionNode) != NSTACKX_EOK) {
-        DFILE_LOGE(TAG, "no session found for id %d", sessionId);
+        LOGE(TAG, "no session found for id %d", sessionId);
         return;
     }
 
@@ -1488,7 +1492,7 @@ void NSTACKX_DFileClose(int32_t sessionId)
     free(sessionNode);
     CongModuleClean();
     SocketModuleClean();
-    DFILE_LOGI(TAG, "finish to close session");
+    LOGI(TAG, "finish to close session");
 }
 
 static void DFileSetRenameHookInner(void *arg)
@@ -1510,13 +1514,13 @@ int32_t NSTACKX_DFileSetRenameHook(int32_t sessionId, OnDFileRenameFile onRename
     DFileSetRenameHookCtx *ctx = NULL;
 
     if (CheckSessionIdValid(sessionId) != NSTACKX_EOK || onRenameFile == NULL) {
-        DFILE_LOGE(TAG, "invalid arg input");
+        LOGE(TAG, "invalid arg input");
         return NSTACKX_EINVAL;
     }
 
     DFileSessionNode *node = GetDFileSessionNodeById((uint16_t)sessionId);
     if (CheckDFileSessionNodeValid(node) != NSTACKX_EOK) {
-        DFILE_LOGE(TAG, "no session found for id %d", sessionId);
+        LOGE(TAG, "no session found for id %d", sessionId);
         return NSTACKX_EINVAL;
     }
 
@@ -1566,90 +1570,8 @@ int32_t NSTACKX_DFileSetCapabilities(uint32_t capabilities, uint32_t value)
     /* EaglEye test */
     Coverity_Tainted_Set((void *)&capabilities);
     Coverity_Tainted_Set((void *)&value);
-
     /* unused para */
     (void)(capabilities);
     (void)(value);
-    return NSTACKX_EOK;
-}
-
-#ifdef DFILE_ENABLE_HIDUMP
-int32_t NSTACKX_DFileDump(uint32_t argc, const char **arg, void *softObj, DFileDumpFunc dump)
-{
-    int32_t ret = 0, c = 0;
-    char *message = NULL;
-    char *opt = NULL;
-    size_t size = 0;
-    message = (char *)malloc(DUMP_INFO_MAX * sizeof(char));
-    if (message == NULL) {
-        DFILE_LOGE(TAG, "malloc failed");
-        return NSTACKX_EFAILED;
-    }
-    (void)memset_s(message, DUMP_INFO_MAX, 0, DUMP_INFO_MAX);
-
-    NstackGetOptMsg optMsg;
-    (void)NstackInitGetOptMsg(&optMsg);
-
-    while ((c = NstackGetOpt(&optMsg, argc, arg, "s:m:hl")) != NSTACK_GETOPT_END_OF_STR) {
-        switch (c) {
-            case 'h':
-                ret = HidumpHelp(message, &size);
-                break;
-            case 'l':
-                ret = HidumpList(message, &size);
-                break;
-            case 'm':
-                opt = (char *)NstackGetOptArgs(&optMsg);
-                ret = HidumpMessage(message, &size, opt);
-                break;
-            case 's':
-                opt = (char *)NstackGetOptArgs(&optMsg);
-                ret = HidumpInformation(message, &size, opt);
-                break;
-            default:
-                DFILE_LOGE(TAG, "unknown option");
-                ret = HidumpHelp(message, &size);
-                break;
-        }
-        if (ret != NSTACKX_EOK) {
-            free(message);
-            return ret;
-        }
-        dump(softObj, message, size);
-        (void)memset_s(message, DUMP_INFO_MAX, 0, DUMP_INFO_MAX);
-    }
-    free(message);
-    return ret;
-}
-#endif
-
-void NSTACKX_DFileSetEventFunc(void *softObj, DFileEventFunc func)
-{
-    DFileSetEvent(softObj, func);
-}
-
-int32_t NSTACKX_DFileRegisterLogCallback(DFileLogCallback userLogCallback)
-{
-    if (userLogCallback == NULL) {
-        DFILE_LOGE(TAG, "logImpl null");
-        return NSTACKX_EFAILED;
-    }
-    int32_t ret = SetLogCallback(userLogCallback);
-    return ret;
-}
-
-void NSTACKX_DFileRegisterDefaultLog(void)
-{
-    SetDefaultLogCallback();
-    return;
-}
-
-int32_t NSTACKX_DFileSessionGetFileList(int32_t sessionId)
-{
-    return NSTACKX_EOK;
-}
-
-int32_t NSTACKX_DFileSetSessionOpt(int32_t sessionId, const DFileOpt *opt)
-{
     return NSTACKX_EOK;
 }

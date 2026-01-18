@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2021 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -19,13 +19,14 @@
 #include "nstackx_error.h"
 #include "nstackx_event.h"
 #include "nstackx_file_manager_client.h"
-#include "nstackx_dfile_log.h"
+#include "nstackx_log.h"
 #ifdef MBEDTLS_INCLUDED
 #include "nstackx_mbedtls.h"
 #else
 #include "nstackx_openssl.h"
 #endif
 #include "nstackx_util.h"
+#include "nstackx_dev.h"
 #include "securec.h"
 
 #define TAG "nStackXDFile"
@@ -43,9 +44,9 @@ typedef struct {
     FileListMsgReceiver msgReceiver;
     FileManagerMsgType msgType;
     uint16_t fileId;
-    uint16_t transId;
     FileManagerMsg msg;
     void *context;
+    uint16_t transId;
 } FileListMsgCtx;
 
 static void NotifyFileManagerMsgInner(void *arg)
@@ -87,8 +88,9 @@ void NotifyFileManagerMsg(const FileManager *fileManager, FileManagerMsgType msg
 void NotifyFileListMsg(const FileListTask *fileList, FileManagerMsgType msgType)
 {
     FileListMsgCtx *ctx = NULL;
+    uint64_t bytesTransferred;
     if (fileList == NULL) {
-        DFILE_LOGE(TAG, "NotifyFileListMsg fileList error");
+        LOGE(TAG, "NotifyFileListMsg fileList error");
         return;
     }
 
@@ -104,7 +106,8 @@ void NotifyFileListMsg(const FileListTask *fileList, FileManagerMsgType msgType)
             free(ctx);
             return;
         }
-        ctx->msg.transferUpdate.bytesTransferred = fileList->bytesTransferredLastRecord;
+        bytesTransferred = fileList->bytesTransferredLastRecord;
+        ctx->msg.transferUpdate.bytesTransferred = bytesTransferred;
         ctx->msg.transferUpdate.totalBytes = fileList->totalBytes;
         ctx->msg.transferUpdate.transId = fileList->transId;
     }
@@ -167,12 +170,12 @@ int32_t ConvertErrCode(int32_t error)
 int32_t MutexListInit(MutexList *mutexList, uint32_t maxSize)
 {
     if (mutexList == NULL || maxSize == 0) {
-        DFILE_LOGE(TAG, "list with lock dosn't exist of maxSize if zero");
+        LOGE(TAG, "list with lock dosn't exist of maxSize if zero");
         return NSTACKX_EINVAL;
     }
     (void)memset_s(mutexList, sizeof(MutexList), 0, sizeof(MutexList));
     if (PthreadMutexInit(&mutexList->lock, NULL) != 0) {
-        DFILE_LOGE(TAG, "PthreadMutexInit error");
+        LOGE(TAG, "PthreadMutexInit error");
         return NSTACKX_EFAILED;
     }
     ListInitHead(&mutexList->head);
@@ -189,11 +192,11 @@ int32_t MutexListAddNode(MutexList *mutexList, List *element, uint8_t isFront)
 {
     int32_t ret;
     if (PthreadMutexLock(&mutexList->lock) != 0) {
-        DFILE_LOGE(TAG, "pthread mutex lock error");
+        LOGE(TAG, "pthread mutex lock error");
         return NSTACKX_EFAILED;
     }
     if (mutexList->size == mutexList->maxSize) {
-        DFILE_LOGE(TAG, "list is full");
+        LOGE(TAG, "list is full");
         ret = NSTACKX_EFAILED;
     } else {
         if (isFront) {
@@ -205,7 +208,7 @@ int32_t MutexListAddNode(MutexList *mutexList, List *element, uint8_t isFront)
         mutexList->size++;
     }
     if (PthreadMutexUnlock(&mutexList->lock) != 0) {
-        DFILE_LOGE(TAG, "pthread mutex unlock error");
+        LOGE(TAG, "pthread mutex unlock error");
         return NSTACKX_EFAILED;
     }
     return ret;
@@ -216,7 +219,7 @@ int32_t MutexListPopFront(MutexList *mutexList, List **curFront, uint8_t *isPope
     int32_t ret;
     *isPoped = NSTACKX_FALSE;
     if (PthreadMutexLock(&mutexList->lock) != 0) {
-        DFILE_LOGE(TAG, "pthread mutex lock error");
+        LOGE(TAG, "pthread mutex lock error");
         return NSTACKX_EFAILED;
     }
     if (mutexList->size == 0) {
@@ -228,26 +231,26 @@ int32_t MutexListPopFront(MutexList *mutexList, List **curFront, uint8_t *isPope
         ret = NSTACKX_EOK;
     }
     if (PthreadMutexUnlock(&mutexList->lock) != 0) {
-        DFILE_LOGE(TAG, "pthread mutex unlock error");
+        LOGE(TAG, "pthread mutex unlock error");
         return NSTACKX_EFAILED;
     }
     return ret;
 }
 
-static FileListTask *PrepareOneTaskByStatus(FileManager *fileManager, uint32_t runStatus, uint8_t *isErrorOccurred)
+static FileListTask *PrepareOneTaskByStatus(FileManager *fileManager, uint32_t runStatus, uint8_t *isErrorOccured)
 {
     List *pos = NULL;
     List *tmp = NULL;
     FileListTask *fileList = NULL;
     uint8_t isFound = NSTACKX_FALSE;
-    *isErrorOccurred = NSTACKX_FALSE;
+    *isErrorOccured = NSTACKX_FALSE;
 
     if (fileManager == NULL) {
         return NULL;
     }
     if (PthreadMutexLock(&fileManager->taskList.lock) != 0) {
-        DFILE_LOGE(TAG, "pthread mutex lock error");
-        *isErrorOccurred = NSTACKX_TRUE;
+        LOGE(TAG, "pthread mutex lock error");
+        *isErrorOccured = NSTACKX_TRUE;
         return NULL;
     }
     LIST_FOR_EACH_SAFE(pos, tmp, &fileManager->taskList.head) {
@@ -262,15 +265,14 @@ static FileListTask *PrepareOneTaskByStatus(FileManager *fileManager, uint32_t r
             } else if (runStatus == FILE_LIST_STATUS_STOP) {
                 ListRemoveNode(&fileList->list);
                 fileManager->taskList.size--;
-            } else {
             }
             isFound = NSTACKX_TRUE;
             break;
         }
     }
     if (PthreadMutexUnlock(&fileManager->taskList.lock) != 0) {
-        DFILE_LOGE(TAG, "pthread mutex unlock error");
-        *isErrorOccurred = NSTACKX_TRUE;
+        LOGE(TAG, "pthread mutex unlock error");
+        *isErrorOccured = NSTACKX_TRUE;
         if (runStatus != FILE_LIST_STATUS_STOP) {
             return NULL;
         }
@@ -289,7 +291,7 @@ int32_t SetFileOffset(FileInfo *fileInfo, uint64_t fileOffset)
     }
 #ifdef BUILD_FOR_WINDOWS
     if (fseek(fileInfo->fd, (int64_t)fileOffset, SEEK_SET) != 0) {
-        DFILE_LOGE(TAG, "fseek error");
+        LOGE(TAG, "fseek error");
         return NSTACKX_EFAILED;
     }
 #else
@@ -305,11 +307,11 @@ void CloseFile(FileInfo *fileInfo)
     if (fileInfo->fd != NSTACKX_INVALID_FD) {
 #ifdef BUILD_FOR_WINDOWS
         if (fclose(fileInfo->fd) != 0) {
-            DFILE_LOGE(TAG, "fclose error");
+            LOGE(TAG, "fclose error");
         }
 #else
         if (close(fileInfo->fd) != 0) {
-            DFILE_LOGE(TAG, "close error");
+            LOGE(TAG, "close error");
         }
 #endif
         fileInfo->fileOffset = 0;
@@ -381,7 +383,7 @@ static void ClearRecvFileList(FileListTask *fileList)
     }
     SemDestroy(&fileList->semStop);
     if (PthreadMutexLock(&fileList->recvBlockList.lock) != 0) {
-        DFILE_LOGE(TAG, "pthread mutex lock error");
+        LOGE(TAG, "pthread mutex lock error");
     }
     while (fileList->recvBlockList.size > 0) {
         blockFrame = (BlockFrame *)ListPopFront(&fileList->recvBlockList.head);
@@ -393,7 +395,7 @@ static void ClearRecvFileList(FileListTask *fileList)
         }
     }
     if (PthreadMutexUnlock(&fileList->recvBlockList.lock) != 0) {
-        DFILE_LOGE(TAG, "pthread mutex unlock error");
+        LOGE(TAG, "pthread mutex unlock error");
     }
     MutexListDestory(&fileList->recvBlockList);
     while (!ListIsEmpty(&fileList->innerRecvBlockHead)) {
@@ -405,7 +407,9 @@ static void ClearRecvFileList(FileListTask *fileList)
         free(blockFrame);
         blockFrame = NULL;
     }
+#ifndef MBEDTLS_INCLUDED
     ClearCryptCtx(fileList->cryptPara.ctx);
+#endif
     (void)memset_s(fileList, sizeof(FileListTask), 0, sizeof(FileListTask));
     free(fileList);
 }
@@ -425,9 +429,12 @@ char *GetFullFilePath(const char *path, const char *fileName)
         fullPathLength = (uint32_t)(strlen(path) + sizeof(PATH_SEPARATOR) + strlen(fileName) + sizeof('\0'));
     }
 
+    if (fullPathLength == 0) {
+        return NULL;
+    }
     fullPath = (char *)calloc(fullPathLength, sizeof(char));
     if (fullPath == NULL) {
-        DFILE_LOGE(TAG, "full path calloc error");
+        LOGE(TAG, "full path calloc error");
         return NULL;
     }
 
@@ -438,7 +445,7 @@ char *GetFullFilePath(const char *path, const char *fileName)
     }
 
     if (ret == -1) {
-        DFILE_LOGE(TAG, "splice path and file name error");
+        LOGE(TAG, "splice path and file name error");
         free(fullPath);
         return NULL;
     }
@@ -457,9 +464,9 @@ static void ClearIncompleteRecvFiles(const char *path, FileListTask *fileList)
         CloseFile(&fileList->fileInfo[i]);
         fullPath = GetFullFilePath(path, fileList->fileInfo[i].fileName);
         if (fullPath != NULL) {
-            DFILE_LOGE(TAG, "going to remove incomplete file %s", fileList->fileInfo[i].fileName);
+            LOGE(TAG, "going to remove incomplete file %s", fileList->fileInfo[i].fileName);
             if (remove(fullPath) != 0) {
-                DFILE_LOGE(TAG, "remove file failed. errno %d", errno);
+                LOGE(TAG, "remove file failed. errno %d", errno);
             }
             free(fullPath);
         }
@@ -471,14 +478,14 @@ static void FileInfoWriteInit(FileInfo *fileInfo, const char *path, uint8_t isTr
 {
     char *fullPath = GetFullFilePath(path, fileInfo->fileName);
     if (fullPath == NULL) {
-        DFILE_LOGE(TAG, "Can't get full path");
+        LOGE(TAG, "Can't get full path");
         fileInfo->errCode = FILE_MANAGER_ENOMEM;
         return;
     }
     if (TestAndCreateDirectory(fullPath) != NSTACKX_EOK) {
         free(fullPath);
         fileInfo->errCode = FILE_MANAGER_FILE_EOTHER;
-        DFILE_LOGE(TAG, "create directory failed");
+        LOGE(TAG, "create directory failed");
         return;
     }
 #ifdef BUILD_FOR_WINDOWS
@@ -492,8 +499,8 @@ static void FileInfoWriteInit(FileInfo *fileInfo, const char *path, uint8_t isTr
 #endif
     free(fullPath);
     if (fileInfo->fd == NSTACKX_INVALID_FD) {
+        LOGE(TAG, "can't open file, error(%d)", errno);
         fileInfo->errCode = ConvertErrCode(errno);
-        DFILE_LOGE(TAG, "can't open file, error(%d)", errno);
         return;
     }
     fileInfo->fileOffset = 0;
@@ -519,7 +526,7 @@ static int32_t WriteToFile(FileInfo *fileInfo, uint32_t blockSequence, uint16_t 
     fileOffset += fileInfo->startOffset;
     if (SetFileOffset(fileInfo, fileOffset) != NSTACKX_EOK) {
         fileInfo->errCode = FILE_MANAGER_FILE_EOTHER;
-        DFILE_LOGE(TAG, "set file offset failed");
+        LOGE(TAG, "set file offset failed");
         return NSTACKX_EFAILED;
     }
     if (CapsNoRW(session)) {
@@ -536,7 +543,7 @@ static int32_t WriteToFile(FileInfo *fileInfo, uint32_t blockSequence, uint16_t 
 #endif
     }
     if ((pRet < 0) || (ret < length)) {
-        DFILE_LOGE(TAG, "fwrite error %d write %hu target %hu pRet:%d", GetErrno(), ret, length, pRet);
+        LOGE(TAG, "fwrite error %d write %hu target %hu pRet:%d", GetErrno(), ret, length, pRet);
         fileInfo->errCode = FILE_MANAGER_FILE_EOTHER;
         return NSTACKX_EFAILED;
     }
@@ -556,12 +563,12 @@ static int32_t GetFrameHearderInfo(FileListTask *fileList, BlockFrame *blockFram
     *blockSequence = ntohl(blockFrame->fileDataFrame->blockSequence);
     length = ntohs(blockFrame->fileDataFrame->header.length);
     if (transId != fileList->transId || *fileId > fileList->fileNum || *fileId == 0) {
-        DFILE_LOGE(TAG, "illegal transId (%hu) or fileId (%hu)", transId, *fileId);
+        LOGE(TAG, "illegal transId (%hu) or fileId (%hu)", transId, *fileId);
         return NSTACKX_EFAILED;
     } else {
         FileInfo *info = &fileList->fileInfo[*fileId - 1];
         if (info->receivedBlockNum == info->totalBlockNum) {
-            DFILE_LOGI(TAG, "fileId (%hu) has already finished written totalBlockNum %u", *fileId, info->totalBlockNum);
+            LOGI(TAG, "fileId (%hu) has already finished written totalBlockNum %u", *fileId, info->totalBlockNum);
             *payloadLength = 0;
             return NSTACKX_EOK;
         }
@@ -569,7 +576,7 @@ static int32_t GetFrameHearderInfo(FileListTask *fileList, BlockFrame *blockFram
 
     if (*blockSequence >= fileList->fileInfo[*fileId - 1].totalBlockNum ||
         length <= sizeof(FileDataFrame) - sizeof(DFileFrameHeader) || length > NSTACKX_MAX_FRAME_SIZE) {
-        DFILE_LOGE(TAG, "block sequence or length is illegal");
+        LOGE(TAG, "block sequence or length is illegal");
         fileList->errCode = FILE_MANAGER_LIST_EBLOCK;
         return NSTACKX_EFAILED;
     }
@@ -581,7 +588,7 @@ static int32_t GetFrameHearderInfo(FileListTask *fileList, BlockFrame *blockFram
 static void UpdateFileListRecvStatus(FileManager *fileManager, FileListTask *fileList, FileInfo *fileInfo, int32_t ret)
 {
     if (ret != NSTACKX_EOK) {
-        DFILE_LOGE(TAG, "WriteToFile error:transId %u, fileId %u", fileList->transId, fileInfo->fileId);
+        LOGE(TAG, "WriteToFile error:transId %u, fileId %u", fileList->transId, fileInfo->fileId);
         CloseFile(fileInfo);
         fileList->recvFileProcessed++;
         NotifyFileMsg(fileList, fileInfo->fileId, FILE_MANAGER_RECEIVE_FAIL);
@@ -623,7 +630,7 @@ static int32_t WriteSingleBlockFrame(FileManager *fileManager, FileListTask *fil
 
     payLoad = blockFrame->fileDataFrame->blockPayload;
     uint32_t dataLen;
-    if (fileList->cryptPara.keylen > 0) {
+    if (fileList->cryptPara.keylen > 0 && payloadLength > 0) {
         buffer = (uint8_t *)calloc(payloadLength, 1);
         if (buffer == NULL) {
             fileList->errCode = FILE_MANAGER_ENOMEM;
@@ -633,7 +640,7 @@ static int32_t WriteSingleBlockFrame(FileManager *fileManager, FileListTask *fil
         if (dataLen == 0) {
             fileInfo->errCode = FILE_MANAGER_FILE_EOTHER;
             payLoad = NULL;
-            DFILE_LOGE(TAG, "data decrypt error");
+            LOGE(TAG, "data decrypt error");
         } else {
             payLoad = buffer;
             payloadLength = (uint16_t)dataLen;
@@ -665,11 +672,11 @@ static int32_t WriteBlockFrame(FileManager *fileManager, FileListTask *fileList)
         }
         blockFrame = (BlockFrame *)ListPopFront(&fileList->innerRecvBlockHead);
         if (blockFrame == NULL) {
-            DFILE_LOGE(TAG, "get a null block");
+            LOGE(TAG, "get a null block");
             continue;
         }
         if (WriteSingleBlockFrame(fileManager, fileList, blockFrame) != NSTACKX_EOK) {
-            DFILE_LOGE(TAG, "write block frame failed");
+            LOGE(TAG, "write block frame failed");
             if (fileList->errCode != NSTACKX_EOK) {
                 goto L_ERR_FILE_MANAGER;
             }
@@ -696,7 +703,7 @@ static int32_t SwapRecvBlockListHead(MutexList *mutexList, uint8_t *isEmpty, Lis
     List *back = NULL;
     *isEmpty = NSTACKX_FALSE;
     if (PthreadMutexLock(&mutexList->lock) != 0) {
-        DFILE_LOGE(TAG, "pthread mutex lock error");
+        LOGE(TAG, "pthread mutex lock error");
         return NSTACKX_EFAILED;
     }
     if (mutexList->size == 0) {
@@ -713,7 +720,7 @@ static int32_t SwapRecvBlockListHead(MutexList *mutexList, uint8_t *isEmpty, Lis
         mutexList->size = 0;
     }
     if (PthreadMutexUnlock(&mutexList->lock) != 0) {
-        DFILE_LOGE(TAG, "pthread mutex unlock error");
+        LOGE(TAG, "pthread mutex unlock error");
         return NSTACKX_EFAILED;
     }
     return NSTACKX_EOK;
@@ -733,11 +740,10 @@ static void GenerateAllEmptyFiles(FileListTask *fileList)
         fileList->recvFileProcessed++;
 
         if (ret != NSTACKX_EOK) {
-            DFILE_LOGE(TAG, "Create empty file error: transId %u, fileId %u", fileList->transId, fileInfo->fileId);
+            LOGE(TAG, "Create empty file error: transId %u, fileId %u", fileList->transId, fileInfo->fileId);
             NotifyFileMsg(fileList, fileInfo->fileId, FILE_MANAGER_RECEIVE_FAIL);
         } else {
-            DFILE_LOGI(TAG, "Create empty file successfully: transId %u, fileId %u", fileList->transId, 
-                    fileInfo->fileId);
+            LOGI(TAG, "Create empty file successfully: transId %u, fileId %u", fileList->transId, fileInfo->fileId);
             NotifyFileMsg(fileList, fileList->fileInfo[i].fileId, FILE_MANAGER_RECEIVE_SUCCESS);
         }
     }
@@ -752,8 +758,7 @@ static void FileListRefreshFileRecvStatus(FileListTask *fileList)
     for (uint16_t i = 0; i < fileList->fileNum; i++) {
         if (FileGetRecvStatus(&fileList->fileInfo[i]) == STATE_RECEIVE_ONGOING) {
             fileList->fileInfo[i].errCode = FILE_MANAGER_FILE_EOTHER;
-            DFILE_LOGE(TAG, "file list will be stopped and set incompleted file %u to fail", 
-                    fileList->fileInfo[i].fileId);
+            LOGE(TAG, "file list will be stopped and set incompleted file %u to fail", fileList->fileInfo[i].fileId);
             NotifyFileMsg(fileList, fileList->fileInfo[i].fileId, FILE_MANAGER_RECEIVE_FAIL);
         }
     }
@@ -782,7 +787,7 @@ static void RecvTaskProcess(FileManager *fileManager, FileListTask *fileList)
         }
         if (SwapRecvBlockListHead(&fileList->recvBlockList, &isEmpty, &fileList->innerRecvBlockHead,
             &(fileList->innerRecvSize)) != NSTACKX_EOK) {
-            DFILE_LOGE(TAG, "Swap receive block list head error:transId %u", fileList->transId);
+            LOGE(TAG, "Swap receive block list head error:transId %u", fileList->transId);
             fileList->errCode = FILE_MANAGER_EMUTEX;
             break;
         }
@@ -791,7 +796,7 @@ static void RecvTaskProcess(FileManager *fileManager, FileListTask *fileList)
                 fileList->dataWriteTimeoutCnt++;
             }
             if (fileList->dataWriteTimeoutCnt > NSTACKX_MAX_DATA_FWRITE_TIMEOUT_COUNT) {
-                DFILE_LOGE(TAG, "some frames may lost or illegal and stop this file list");
+                LOGE(TAG, "some frames may lost or illegal and stop this file list");
                 break;
             }
             continue;
@@ -799,14 +804,14 @@ static void RecvTaskProcess(FileManager *fileManager, FileListTask *fileList)
             fileList->dataWriteTimeoutCnt = 0;
         }
         if (WriteBlockFrame(fileManager, fileList) != NSTACKX_EOK) {
-            DFILE_LOGE(TAG, "WriteBlockFrame error");
+            LOGE(TAG, "WriteBlockFrame error");
             continue;
         }
     }
     FileListRefreshFileRecvStatus(fileList);
     if (fileList->errCode != FILE_MANAGER_EOK) {
         NotifyFileListMsg(fileList, FILE_MANAGER_RECEIVE_FAIL);
-        DFILE_LOGE(TAG, "recv task process failed");
+        LOGE(TAG, "recv task process failed");
     }
 }
 
@@ -853,10 +858,10 @@ static void SetIOThreadName(uint32_t threadIdx)
 {
     char name[MAX_THREAD_NAME_LEN] = {0};
     if (sprintf_s(name, sizeof(name), "%s%u", DFFILE_IO_THREAD_NAME_PREFIX, threadIdx) < 0) {
-        DFILE_LOGE(TAG, "sprintf io thead name failed");
+        LOGE(TAG, "sprintf io thead name failed");
     }
     SetThreadName(name);
-    DFILE_LOGI(TAG, "IO thread %u start", threadIdx);
+    LOGI(TAG, "IO thread %u start", threadIdx);
 }
 
 static void DoTaskProcess(FileManager *fileManager, FileListTask *fileList)
@@ -887,7 +892,7 @@ static void *FileManagerThread(void *arg)
     FileManager *fileManager = ctx->fileManager;
     uint32_t threadIdx = ctx->threadIdx;
     free(ctx);
-    uint8_t isErrorOccurred = NSTACKX_FALSE;
+    uint8_t isErrorOccured = NSTACKX_FALSE;
     FileListTask *fileList = NULL;
     uint8_t isBind = NSTACKX_FALSE;
     FileManagerPre(fileManager, threadIdx);
@@ -897,32 +902,32 @@ static void *FileManagerThread(void *arg)
             break;
         }
         uint8_t isStopTaskDetached = NSTACKX_FALSE;
-        fileList = PrepareOneTaskByStatus(fileManager, FILE_LIST_STATUS_STOP, &isErrorOccurred);
-        if (isErrorOccurred) {
+        fileList = PrepareOneTaskByStatus(fileManager, FILE_LIST_STATUS_STOP, &isErrorOccured);
+        if (isErrorOccured) {
             fileManager->errCode = FILE_MANAGER_EMUTEX;
             NotifyFileManagerMsg(fileManager, FILE_MANAGER_INNER_ERROR);
-            DFILE_LOGE(TAG, "error occuerd when get stop file list");
+            LOGE(TAG, "error occuerd when get stop file list");
         }
         if (fileList != NULL) {
             isStopTaskDetached = NSTACKX_TRUE;
-            DFILE_LOGI(TAG, "Thread %u is clearing fileList %u", threadIdx, fileList->transId);
+            LOGI(TAG, "Thread %u is clearing fileList %u", threadIdx, fileList->transId);
             ClearFileList(fileManager, fileList);
         }
-        if (isErrorOccurred || isStopTaskDetached) {
+        if (isErrorOccured || isStopTaskDetached) {
             continue;
         }
 
-        fileList = PrepareOneTaskByStatus(fileManager, FILE_LIST_STATUS_IDLE, &isErrorOccurred);
-        if (isErrorOccurred) {
+        fileList = PrepareOneTaskByStatus(fileManager, FILE_LIST_STATUS_IDLE, &isErrorOccured);
+        if (isErrorOccured) {
             fileManager->errCode = FILE_MANAGER_EMUTEX;
             NotifyFileManagerMsg(fileManager, FILE_MANAGER_INNER_ERROR);
-            DFILE_LOGE(TAG, "error occuerd when get idle file list");
+            LOGE(TAG, "error occuerd when get idle file list");
             continue;
         }
         if (fileList == NULL || fileList->errCode != FILE_MANAGER_EOK) {
             continue;
         }
-        DFILE_LOGI(TAG, "Thread %u is processing for fileList %u", threadIdx, fileList->transId);
+        LOGI(TAG, "Thread %u is processing for fileList %u", threadIdx, fileList->transId);
         if (isBind == NSTACKX_FALSE && fileManager->transFlag == NSTACKX_TRUE) {
             BindFileManagerThreadToTargetCpu(fileManager, threadIdx);
             isBind = NSTACKX_TRUE;
@@ -940,7 +945,7 @@ static void WakeAllThread(FileManager *fileManager)
     FileListTask *fileList = NULL;
     SendBlockFrameListPara *para = NULL;
     if (PthreadMutexLock(&fileManager->taskList.lock) != 0) {
-        DFILE_LOGE(TAG, "pthread mutex lock error");
+        LOGE(TAG, "pthread mutex lock error");
         return;
     }
     LIST_FOR_EACH(list, &fileManager->taskList.head) {
@@ -950,7 +955,7 @@ static void WakeAllThread(FileManager *fileManager)
         SemPost(&para->semBlockListNotFull);
     }
     if (PthreadMutexUnlock(&fileManager->taskList.lock) != 0) {
-        DFILE_LOGE(TAG, "pthread mutex unlock error");
+        LOGE(TAG, "pthread mutex unlock error");
         return;
     }
     for (i = 0; i < NSTACKX_FILE_MANAGER_THREAD_NUM; i++) {
@@ -974,7 +979,7 @@ void StopFileManagerThreads(FileManager *fileManager)
 
     for (i = 0; i < NSTACKX_FILE_MANAGER_THREAD_NUM; i++) {
         PthreadJoin(fileManager->fileManagerTid[i], NULL);
-        DFILE_LOGI(TAG, "Total thread %u: %u quit", NSTACKX_FILE_MANAGER_THREAD_NUM, i + 1);
+        LOGI(TAG, "Total thread %u: %u quit", NSTACKX_FILE_MANAGER_THREAD_NUM, i + 1);
         fileManager->fileManagerTid[i] = INVALID_TID;
     }
 }
@@ -987,13 +992,13 @@ static int32_t CreateFMThread(FileManager *fileManager)
     for (i = 0; i < NSTACKX_FILE_MANAGER_THREAD_NUM; i++) {
         ctx = (FileManagerThreadCtx *)calloc(1, sizeof(FileManagerThreadCtx));
         if (ctx == NULL) {
-            DFILE_LOGE(TAG, "the %u ctx create failed", i + 1);
+            LOGE(TAG, "the %u ctx create failed", i + 1);
             goto L_ERR_FILEMANAGER;
         }
         ctx->fileManager = fileManager;
         ctx->threadIdx = i;
         if ((PthreadCreate(&fileManager->fileManagerTid[i], NULL, FileManagerThread, ctx)) != 0) {
-            DFILE_LOGE(TAG, "the %u thread create failed", i + 1);
+            LOGE(TAG, "the %u thread create failed", i + 1);
             free(ctx);
             goto L_ERR_FILEMANAGER;
         }
@@ -1035,31 +1040,22 @@ int32_t SetCryptPara(FileListTask *fileList, const uint8_t key[], uint32_t keyLe
 {
     uint32_t aadLen;
 
-    if (CapsChaCha(fileList->context)) {
-        fileList->cryptPara.cipherType = CIPHER_CHACHA;
-    } else {
-        fileList->cryptPara.cipherType = CIPHER_AES_GCM;
-        keyLen = AES_128_KEY_LENGTH;
-    }
-
     if (memcpy_s(fileList->cryptPara.key, sizeof(fileList->cryptPara.key), key, keyLen) != EOK) {
-        DFILE_LOGE(TAG, "memcpy key failed");
+        LOGE(TAG, "memcpy key failed");
         return NSTACKX_EFAILED;
     }
     fileList->cryptPara.keylen = keyLen;
 
     aadLen = sizeof(fileList->cryptPara.aad);
-    if (memset_s(fileList->cryptPara.aad, aadLen, GCM_AAD_CHAR, aadLen) != EOK) {
-        DFILE_LOGE(TAG, "memset aad failed");
-        return NSTACKX_EFAILED;
-    }
+    (void)memset_s(fileList->cryptPara.aad, aadLen, GCM_AAD_CHAR, aadLen);
     fileList->cryptPara.aadLen = aadLen;
+#ifndef MBEDTLS_INCLUDED
     fileList->cryptPara.ctx = CreateCryptCtx();
     if (fileList->cryptPara.ctx == NULL) {
-        DFILE_LOGE(TAG, "failed to create crypt ctx");
+        LOGE(TAG, "failed to create crypt ctx");
         return NSTACKX_EFAILED;
     }
-    DFILE_LOGI(TAG, "set encrypt/decrypt type is %d", fileList->cryptPara.cipherType);
+#endif
     return NSTACKX_EOK;
 }
 
@@ -1067,31 +1063,31 @@ int32_t SetCryptPara(FileListTask *fileList, const uint8_t key[], uint32_t keyLe
  * Note that this interface is only called by dfile main thread now. If other thread wants to call it, must be very
  * careful about thread-safety.
  */
-FileListTask *GetFileListById(MutexList *taskList, uint16_t transId, uint8_t *isErrorOccurred)
+FileListTask *GetFileListById(MutexList *taskList, uint16_t transId, uint8_t *isErrorOccured)
 {
     List *list = NULL;
     FileListTask *fileList = NULL;
     uint8_t isFound = NSTACKX_FALSE;
-    if (isErrorOccurred != NULL) {
-        *isErrorOccurred = NSTACKX_FALSE;
+    if (isErrorOccured != NULL) {
+        *isErrorOccured = NSTACKX_FALSE;
     }
     if (taskList == NULL) {
         return NULL;
     }
     if (PthreadMutexLock(&taskList->lock) != 0) {
-        DFILE_LOGE(TAG, "pthread mutex lock error");
+        LOGE(TAG, "pthread mutex lock error");
         goto L_ERR_FILE_MANAGER;
     }
     LIST_FOR_EACH(list, &taskList->head) {
         fileList = (FileListTask *)list;
-        /* If the target filelist has been stopped, it will not be accessible by other thread. */
+        /* If the target filelist has been stopped, it will not be accessable by other thread. */
         if (fileList->transId == transId && fileList->runStatus != FILE_LIST_STATUS_STOP) {
             isFound = NSTACKX_TRUE;
             break;
         }
     }
     if (PthreadMutexUnlock(&taskList->lock) != 0) {
-        DFILE_LOGE(TAG, "pthread mutex unlock error");
+        LOGE(TAG, "pthread mutex unlock error");
         goto L_ERR_FILE_MANAGER;
     }
     if (isFound) {
@@ -1099,8 +1095,8 @@ FileListTask *GetFileListById(MutexList *taskList, uint16_t transId, uint8_t *is
     }
     return NULL;
 L_ERR_FILE_MANAGER:
-    if (isErrorOccurred != NULL) {
-        *isErrorOccurred = NSTACKX_TRUE;
+    if (isErrorOccured != NULL) {
+        *isErrorOccured = NSTACKX_TRUE;
     }
     return NULL;
 }
@@ -1118,19 +1114,19 @@ int32_t GetFileBlockListSize(MutexList *taskList, uint32_t *recvListAllSize, uin
         return NSTACKX_EOK;
     }
     if (PthreadMutexLock(&taskList->lock) != 0) {
-        DFILE_LOGE(TAG, "pthread mutex lock error");
+        LOGE(TAG, "pthread mutex lock error");
         goto L_ERR_FILE_MANAGER;
     }
     LIST_FOR_EACH(list, &taskList->head) {
         fileList = (FileListTask *)list;
-        /* If the target filelist has been stopped, it will not be accessible by other thread. */
+        /* If the target filelist has been stopped, it will not be accessable by other thread. */
         if (fileList->runStatus != FILE_LIST_STATUS_STOP) {
             sum += fileList->recvBlockList.size;
             innerSum += fileList->innerRecvSize;
         }
     }
     if (PthreadMutexUnlock(&taskList->lock) != 0) {
-        DFILE_LOGE(TAG, "pthread mutex unlock error");
+        LOGE(TAG, "pthread mutex unlock error");
         goto L_ERR_FILE_MANAGER;
     }
     *recvListAllSize = sum;
@@ -1170,7 +1166,7 @@ int32_t FileManagerStopTask(FileManager *fileManager, uint16_t transId, TaskStop
         return NSTACKX_EINVAL;
     }
     if (PthreadMutexLock(&fileManager->taskList.lock) != 0) {
-        DFILE_LOGE(TAG, "pthread mutex lock error");
+        LOGE(TAG, "pthread mutex lock error");
         goto L_ERR_FILE_MANAGER;
     }
     LIST_FOR_EACH(list, &fileManager->taskList.head) {
@@ -1198,14 +1194,14 @@ int32_t FileManagerStopTask(FileManager *fileManager, uint16_t transId, TaskStop
     }
 
     if (PthreadMutexUnlock(&fileManager->taskList.lock) != 0) {
-        DFILE_LOGE(TAG, "pthread mutex unlock error");
+        LOGE(TAG, "pthread mutex unlock error");
         goto L_ERR_FILE_MANAGER;
     }
 
     if (isFound) {
         return NSTACKX_EOK;
     }
-    DFILE_LOGE(TAG, "can't find target trans %u to stop", transId);
+    LOGE(TAG, "can't find target trans %u to stop", transId);
     return NSTACKX_EFAILED;
 L_ERR_FILE_MANAGER:
     fileManager->errCode = FILE_MANAGER_EMUTEX;
@@ -1217,17 +1213,17 @@ int32_t FileManagerSetMaxFrameLength(FileManager *fileManager, uint16_t maxFrame
 {
     uint32_t standardDataLength;
     if (CheckManager(fileManager) != NSTACKX_EOK) {
-        DFILE_LOGE(TAG, "Invalid input");
+        LOGE(TAG, "Invalid input");
         return NSTACKX_EINVAL;
     }
     if (maxFrameLength <= offsetof(FileDataFrame, blockPayload) || maxFrameLength > NSTACKX_MAX_FRAME_SIZE) {
-        DFILE_LOGE(TAG, "max frame length is illegal");
+        LOGE(TAG, "max frame length is illegal");
         return NSTACKX_EINVAL;
     }
     if (fileManager->keyLen > 0) {
         standardDataLength = maxFrameLength - offsetof(FileDataFrame, blockPayload);
         if (standardDataLength <= GCM_ADDED_LEN) {
-            DFILE_LOGE(TAG, "max frame length is too small");
+            LOGE(TAG, "max frame length is too small");
             return NSTACKX_EINVAL;
         }
     }
@@ -1249,7 +1245,7 @@ int32_t FileManagerSetRecvParaWithConnType(FileManager *fileManager, uint16_t co
 {
     int32_t ret = NSTACKX_EOK;
     if (CheckReceiverManager(fileManager) != NSTACKX_EOK) {
-        DFILE_LOGE(TAG, "Invalid input");
+        LOGE(TAG, "Invalid input");
         return NSTACKX_EINVAL;
     }
     if (connectType == CONNECT_TYPE_WLAN) {
@@ -1257,33 +1253,33 @@ int32_t FileManagerSetRecvParaWithConnType(FileManager *fileManager, uint16_t co
     } else if (connectType == CONNECT_TYPE_P2P) {
         fileManager->maxRecvBlockListSize = NSTACKX_P2P_RECV_BLOCK_QUEUE_MAX_LEN * NSTACKX_FILE_MANAGER_THREAD_NUM;
     } else {
-        DFILE_LOGE(TAG, "Invalid connect type");
+        LOGE(TAG, "Invalid connect type");
         ret = NSTACKX_EFAILED;
     }
-    DFILE_LOGI(TAG, "connect type is %u and max recv list size is %u", connectType, fileManager->maxRecvBlockListSize);
+    LOGI(TAG, "connect type is %u and max recv list size is %u", connectType, fileManager->maxRecvBlockListSize);
     return ret;
 }
 
 int32_t FileManagerSetWritePath(FileManager *fileManager, const char *storagePath)
 {
     if (CheckReceiverManager(fileManager) != NSTACKX_EOK || storagePath == NULL) {
-        DFILE_LOGE(TAG, "Invalid input");
+        LOGE(TAG, "Invalid input");
         return NSTACKX_EINVAL;
     }
 
     if (fileManager->typedPathNum > 0) {
-        DFILE_LOGE(TAG, "typed storage paths has been set and can't set the common storage path");
+        LOGE(TAG, "typed storage paths has been set and can't set the common storage path");
         return NSTACKX_EINVAL;
     }
 
     fileManager->commonStoragePath = realpath(storagePath, NULL);
     if (fileManager->commonStoragePath == NULL) {
-        DFILE_LOGE(TAG, "can't get canonicalized absolute pathname, error(%d)", errno);
+        LOGE(TAG, "can't get canonicalized absolute pathname, error(%d)", errno);
         return NSTACKX_EFAILED;
     }
 
     if (!IsAccessiblePath(storagePath, W_OK, S_IFDIR)) {
-        DFILE_LOGE(TAG, "storage path is not a valid writable folder");
+        LOGE(TAG, "storage path is not a valid writable folder");
         free(fileManager->commonStoragePath);
         fileManager->commonStoragePath = NULL;
         return NSTACKX_EFAILED;
@@ -1296,19 +1292,19 @@ int32_t FileManagerSetWritePathList(FileManager *fileManager, char *path[], uint
 {
     if (CheckReceiverManager(fileManager) != NSTACKX_EOK || path == NULL || pathType == NULL || pathNum == 0 ||
         pathNum > NSTACKX_MAX_STORAGE_PATH_NUM) {
-        DFILE_LOGE(TAG, "Invalid input");
+        LOGE(TAG, "Invalid input");
         return NSTACKX_EINVAL;
     }
 
     if (fileManager->commonStoragePath != NULL) {
-        DFILE_LOGE(TAG, "common storage paths has been set and can't set the typed storage path");
+        LOGE(TAG, "common storage paths has been set and can't set the typed storage path");
         return NSTACKX_EFAILED;
     }
 
     for (uint16_t i = 0; i < pathNum; i++) {
         fileManager->pathList[i].storagePath = path[i];
         fileManager->pathList[i].pathType = pathType[i];
-        DFILE_LOGI(TAG, "the %uth path, type %u", i, fileManager->pathList[i].pathType);
+        LOGI(TAG, "the %uth path, type %u", i, fileManager->pathList[i].pathType);
     }
     fileManager->typedPathNum = pathNum;
     return NSTACKX_EOK;
@@ -1321,7 +1317,7 @@ static int32_t AtomicParameterInit(FileManager *fileManager)
     uint32_t sendListSize = fileManager->maxSendBlockListSize;
 
     if (SemInit(&fileManager->semTaskListNotEmpty, 0, 0) != 0) {
-        DFILE_LOGE(TAG, "semTaskListNotEmpty SemInit error");
+        LOGE(TAG, "semTaskListNotEmpty SemInit error");
         return NSTACKX_EFAILED;
     }
 
@@ -1329,7 +1325,7 @@ static int32_t AtomicParameterInit(FileManager *fileManager)
         for (i = 0; i < fileManager->sendFrameListNum; i++) {
             para = &fileManager->sendBlockFrameListPara[i];
             if (SemInit(&para->semBlockListNotFull, 0, sendListSize) != 0) {
-                DFILE_LOGE(TAG, "semTaskListNotEmpty SemInit error");
+                LOGE(TAG, "semTaskListNotEmpty SemInit error");
                 goto L_ERR_FILE_MANAGER;
             }
         }
@@ -1358,14 +1354,14 @@ static void AtomicParameterDestory(FileManager *fileManager)
 static int32_t InitAllCacheList(FileManager *fileManager)
 {
     if (MutexListInit(&fileManager->taskList, NSTACKX_MAX_PROCESSING_TASK_NUM) != NSTACKX_EOK) {
-        DFILE_LOGE(TAG, "taskList InitList error");
+        LOGE(TAG, "taskList InitList error");
         return NSTACKX_EFAILED;
     }
 
     if (fileManager->isSender) {
         if (InitSendBlockLists(fileManager) != NSTACKX_EOK) {
             MutexListDestory(&fileManager->taskList);
-            DFILE_LOGE(TAG, "sendBlockFrameList InitList error");
+            LOGE(TAG, "sendBlockFrameList InitList error");
             return NSTACKX_EFAILED;
         }
     }
@@ -1382,10 +1378,10 @@ static int32_t FileManagerInit(FileManager *fileManager, FileManagerMsgPara *msg
         fileManager->sendFrameListNum = GetSendListNum();
         fileManager->maxSendBlockListSize = GetMaxSendListSize(connType);
         if (fileManager->maxSendBlockListSize == 0 || fileManager->sendFrameListNum == 0) {
-            DFILE_LOGE(TAG, "can't get valid send frame list num or size");
+            LOGE(TAG, "can't get valid send frame list num or size");
             return NSTACKX_EFAILED;
         }
-        DFILE_LOGI(TAG, "connect type is %u and send frame list number is %u max send list size is %u",
+        LOGI(TAG, "connect type is %u and send frame list number is %u max send list size is %u",
              connType, fileManager->sendFrameListNum, fileManager->maxSendBlockListSize);
     }
     if (IsEpollDescValid(msgPara->epollfd) && msgPara->msgReceiver != NULL) {
@@ -1396,9 +1392,9 @@ static int32_t FileManagerInit(FileManager *fileManager, FileManagerMsgPara *msg
     }
 
     if (keyLen > 0) {
-        if ((keyLen != AES_128_KEY_LENGTH && keyLen != CHACHA20_KEY_LENGTH) || key == NULL ||
+        if (keyLen != AES_128_KEY_LENGTH || key == NULL ||
             memcpy_s(fileManager->key, sizeof(fileManager->key), key, keyLen) != EOK) {
-            DFILE_LOGE(TAG, "can't get valid key info.");
+            LOGE(TAG, "can't get valid key info.");
             return NSTACKX_EFAILED;
         }
         fileManager->keyLen = keyLen;
@@ -1411,12 +1407,12 @@ FileManager *FileManagerCreate(uint8_t isSender, FileManagerMsgPara *msgPara, co
 {
     FileManager *fileManager = NULL;
     if (isSender && (connType != CONNECT_TYPE_P2P && connType != CONNECT_TYPE_WLAN)) {
-        DFILE_LOGE(TAG, "connType for sender is illagal");
+        LOGE(TAG, "connType for sender is illagal");
         return NULL;
     }
     fileManager = (FileManager *)calloc(1, sizeof(FileManager));
     if (fileManager == NULL) {
-        DFILE_LOGE(TAG, "fileManager calloc error");
+        LOGE(TAG, "fileManager calloc error");
         return NULL;
     }
     fileManager->isSender = isSender;
@@ -1463,19 +1459,19 @@ static int32_t AddRecvFileInfo(FileBaseInfo *fileBasicInfo, FileListTask *fmFile
     FileInfo *fileInfo = NULL;
     for (i = 0; i < fmFileList->fileNum; i++) {
         if (fileBasicInfo[i].fileName == NULL || !IsFileNameLegal(fileBasicInfo[i].fileName)) {
-            DFILE_LOGE(TAG, "the %uth input fileName is NULL", i);
+            LOGE(TAG, "the %uth input fileName is NULL", i);
             goto L_ERR_FILE_MANAGER;
         }
         fileName = fileBasicInfo[i].fileName;
         fileInfo = &fmFileList->fileInfo[i];
         fileInfo->fileName = (char *)calloc(strlen(fileName) + 1, sizeof(char));
         if (fileInfo->fileName == NULL) {
-            DFILE_LOGE(TAG, "fileName calloc error");
+            LOGE(TAG, "fileName calloc error");
             goto L_ERR_FILE_MANAGER;
         }
 
         if (strcpy_s(fileInfo->fileName, strlen(fileName) + 1, fileName) != NSTACKX_EOK) {
-            DFILE_LOGE(TAG, "%uth fileName copy failed", i);
+            LOGE(TAG, "%uth fileName copy failed", i);
             goto L_ERR_FILE_MANAGER;
         }
 
@@ -1508,7 +1504,7 @@ static FileListTask *CreateRecvFileList(RecvFileListInfo *fileListInfo, const ch
     FileListTask *fmFileList = NULL;
     fmFileList = (FileListTask *)calloc(1, sizeof(FileListTask));
     if (fmFileList == NULL) {
-        DFILE_LOGE(TAG, "file list calloc error");
+        LOGE(TAG, "file list calloc error");
         return NULL;
     }
     fmFileList->transId = fileListInfo->transId;
@@ -1516,7 +1512,7 @@ static FileListTask *CreateRecvFileList(RecvFileListInfo *fileListInfo, const ch
     fmFileList->storagePath = storagePath;
     fmFileList->noSyncFlag = fileListInfo->noSyncFlag;
     if (SemInit(&fmFileList->semStop, 0, 0) != 0) {
-        DFILE_LOGE(TAG, "SemInit error");
+        LOGE(TAG, "SemInit error");
         free(fmFileList);
         return NULL;
     }
@@ -1526,7 +1522,7 @@ static FileListTask *CreateRecvFileList(RecvFileListInfo *fileListInfo, const ch
     fmFileList->errCode = FILE_MANAGER_EOK;
     ListInitHead(&fmFileList->innerRecvBlockHead);
     if (MutexListInit(&fmFileList->recvBlockList, maxRecvBlockListSize) != NSTACKX_EOK) {
-        DFILE_LOGE(TAG, "receive block list init error");
+        LOGE(TAG, "receive block list init error");
         goto L_ERR_FILE_MANAGER;
     }
     fmFileList->recvFileProcessed = 0;
@@ -1570,25 +1566,25 @@ int32_t FileManagerRecvFileTask(FileManager *fileManager, RecvFileListInfo *file
     }
 
     if (fileManager->taskList.size == fileManager->taskList.maxSize) {
-        DFILE_LOGE(TAG, "task list is full");
+        LOGE(TAG, "task list is full");
         return NSTACKX_EFAILED;
     }
 
     storagePath = GetStoragePathByType(fileManager, fileListInfo->pathType);
     if (storagePath == NULL) {
-        DFILE_LOGE(TAG, "can't get storage path for pathType %u", fileListInfo->pathType);
+        LOGE(TAG, "can't get storage path for pathType %u", fileListInfo->pathType);
         return NSTACKX_EFAILED;
     }
 
     standardBlockSize = GetStandardBlockSize(fileManager);
     if (standardBlockSize == 0) {
-        DFILE_LOGE(TAG, "max frame length is too small");
+        LOGE(TAG, "max frame length is too small");
         return NSTACKX_EFAILED;
     }
     fmFileList = CreateRecvFileList(fileListInfo, storagePath, standardBlockSize, msgPara,
                                     fileManager->maxRecvBlockListSize);
     if (fmFileList == NULL) {
-        DFILE_LOGE(TAG, "Creat file list error");
+        LOGE(TAG, "Creat file list error");
         return NSTACKX_EFAILED;
     }
     fmFileList->epollfd = fileManager->epollfd;
@@ -1596,12 +1592,12 @@ int32_t FileManagerRecvFileTask(FileManager *fileManager, RecvFileListInfo *file
     fmFileList->maxFrameLength = fileManager->maxFrameLength;
     if (fileManager->keyLen > 0 && SetCryptPara(fmFileList, fileManager->key, fileManager->keyLen) != NSTACKX_EOK) {
         ClearRecvFileList(fmFileList);
-        DFILE_LOGE(TAG, "fail to set crypto para");
+        LOGE(TAG, "fail to set crypto para");
         return NSTACKX_EFAILED;
     }
 
     if (MutexListAddNode(&fileManager->taskList, &fmFileList->list, NSTACKX_FALSE) != NSTACKX_EOK) {
-        DFILE_LOGE(TAG, "Add task to list error");
+        LOGE(TAG, "Add tast to list error");
         ClearRecvFileList(fmFileList);
         fileManager->errCode = FILE_MANAGER_EMUTEX;
         NotifyFileManagerMsg(fileManager, FILE_MANAGER_INNER_ERROR);
@@ -1620,7 +1616,7 @@ static int32_t PushRecvBlockFrame(FileListTask *fileList, FileDataFrame *frame)
 
     blockFrame = (BlockFrame *)calloc(1, sizeof(BlockFrame));
     if (blockFrame == NULL) {
-        DFILE_LOGE(TAG, "memory calloc failed");
+        LOGE(TAG, "memory calloc failed");
         return FILE_MANAGER_ENOMEM;
     }
     blockFrame->fileDataFrame = frame;
@@ -1632,7 +1628,7 @@ static int32_t PushRecvBlockFrame(FileListTask *fileList, FileDataFrame *frame)
     }
     if (ret != NSTACKX_EOK) {
         free(blockFrame);
-        DFILE_LOGE(TAG, "add node to recv block list failed");
+        LOGE(TAG, "add node to recv block list failed");
         return FILE_MANAGER_EMUTEX;
     }
     SemPost(&fileList->semStop);
@@ -1647,7 +1643,7 @@ static int32_t CheckFileBlockListOverflow(FileManager *fileManager)
     if (GetFileBlockListSize(&fileManager->taskList, &recvListAllSize, &recvInnerAllSize) != NSTACKX_EOK) {
         fileManager->errCode = FILE_MANAGER_EMUTEX;
         NotifyFileManagerMsg(fileManager, FILE_MANAGER_INNER_ERROR);
-        DFILE_LOGE(TAG, "failed to get GetFileBlockListSize");
+        LOGE(TAG, "failed to get GetFileBlockListSize");
         return NSTACKX_EFAILED;
     }
     if (recvListAllSize >= fileManager->maxRecvBlockListSize) {
@@ -1661,25 +1657,25 @@ int32_t FileManagerFileWrite(FileManager *fileManager, FileDataFrame *frame)
 {
     uint16_t transId;
     FileListTask *fileList = NULL;
-    uint8_t isErrorOccurred = NSTACKX_FALSE;
+    uint8_t isErrorOccured = NSTACKX_FALSE;
     BlockFrame block = {
         .list = {NULL, NULL},
         .fileDataFrame = frame,
     };
     if (CheckReceiverManager(fileManager) != NSTACKX_EOK) {
-        DFILE_LOGE(TAG, "invalid input");
+        LOGE(TAG, "invalid input");
         return NSTACKX_EINVAL;
     }
     transId = ntohs(frame->header.transId);
-    fileList = GetFileListById(&fileManager->taskList, transId, &isErrorOccurred);
-    if (isErrorOccurred || fileList == NULL) {
+    fileList = GetFileListById(&fileManager->taskList, transId, &isErrorOccured);
+    if (isErrorOccured || fileList == NULL) {
         fileManager->errCode = FILE_MANAGER_EMUTEX;
         NotifyFileManagerMsg(fileManager, FILE_MANAGER_INNER_ERROR);
-        DFILE_LOGE(TAG, "failed to get target fileList %u", transId);
+        LOGE(TAG, "failed to get target fileList %u", transId);
         return NSTACKX_EFAILED;
     }
     if (CheckFilelistNotStop(fileList) != NSTACKX_EOK) {
-        DFILE_LOGE(TAG, "target file list %u is not available", transId);
+        LOGE(TAG, "target file list %u is not available", transId);
         return NSTACKX_EFAILED;
     }
 
@@ -1689,7 +1685,7 @@ int32_t FileManagerFileWrite(FileManager *fileManager, FileDataFrame *frame)
     RefreshBytesTransFerred(fileManager, &block);
     fileList->errCode = PushRecvBlockFrame(fileList, frame);
     if (fileList->errCode != FILE_MANAGER_EOK) {
-        DFILE_LOGE(TAG, "add frame to recv block list failed");
+        LOGE(TAG, "add frame to recv block list failed");
         NotifyFileListMsg(fileList, FILE_MANAGER_RECEIVE_FAIL);
         return NSTACKX_EFAILED;
     }
@@ -1702,13 +1698,13 @@ static void ClearTask(FileManager *fileManager)
 
     while (fileManager->taskList.size > 0) {
         if (PthreadMutexLock(&fileManager->taskList.lock) != 0) {
-            DFILE_LOGE(TAG, "pthread mutex lock error");
+            LOGE(TAG, "pthread mutex lock error");
             return;
         }
         fileList = (FileListTask *)ListPopFront(&fileManager->taskList.head);
         fileManager->taskList.size--;
         if (PthreadMutexUnlock(&fileManager->taskList.lock) != 0) {
-            DFILE_LOGE(TAG, "pthread mutex unlock error");
+            LOGE(TAG, "pthread mutex unlock error");
         }
         if (fileList == NULL) {
             continue;
@@ -1738,7 +1734,7 @@ void FileManagerDestroy(FileManager *fileManager)
     (void)memset_s(fileManager, sizeof(FileManager), 0, sizeof(FileManager));
     free(fileManager);
     fileManager = NULL;
-    DFILE_LOGI(TAG, "Destroy successfully!");
+    LOGI(TAG, "Destroy successfully!");
 }
 
 uint8_t FileManagerIsRecvBlockWritable(FileManager *fileManager, uint16_t transId)
@@ -1773,7 +1769,7 @@ int32_t FileManagerGetBytesTransferred(FileManager *fileManager, uint64_t *bytes
         return 0;
     }
     if (PthreadMutexLock(&fileManager->taskList.lock) != 0) {
-        DFILE_LOGE(TAG, "pthread mutex lock error");
+        LOGE(TAG, "pthread mutex lock error");
         goto L_ERR_FILE_MANAGER;
     }
     LIST_FOR_EACH(list, &fileManager->taskList.head) {
@@ -1784,13 +1780,13 @@ int32_t FileManagerGetBytesTransferred(FileManager *fileManager, uint64_t *bytes
         runningTaskBytesTransferred += FileListGetBytesTransferred(fileList, fileManager->isSender);
     }
     if (PthreadMutexUnlock(&fileManager->taskList.lock) != 0) {
-        DFILE_LOGE(TAG, "pthread mutex unlock error");
+        LOGE(TAG, "pthread mutex unlock error");
         goto L_ERR_FILE_MANAGER;
     }
 
     ret = runningTaskBytesTransferred + fileManager->stoppedTasksBytesTransferred;
     if (ret > fileManager->totalBytes) {
-        DFILE_LOGE(TAG, "result is too large");
+        LOGE(TAG, "result is too large");
         return NSTACKX_EFAILED;
     }
     /* for sender, can't return all bytes before there is unstopped task. */
@@ -1825,7 +1821,7 @@ int32_t FileManagerGetTransUpdateInfo(FileManager *fileManager, uint16_t transId
         return NSTACKX_EFAILED;
     }
     if (PthreadMutexLock(&fileManager->taskList.lock) != 0) {
-        DFILE_LOGE(TAG, "pthread mutex lock error");
+        LOGE(TAG, "pthread mutex lock error");
         goto L_ERR_FILE_MANAGER;
     }
     LIST_FOR_EACH(list, &fileManager->taskList.head) {
@@ -1838,12 +1834,12 @@ int32_t FileManagerGetTransUpdateInfo(FileManager *fileManager, uint16_t transId
         }
     }
     if (PthreadMutexUnlock(&fileManager->taskList.lock) != 0) {
-        DFILE_LOGE(TAG, "pthread mutex unlock error");
+        LOGE(TAG, "pthread mutex unlock error");
         goto L_ERR_FILE_MANAGER;
     }
 
     if (!isFound || bytesTransPtr > totalBytesPtr) {
-        DFILE_LOGE(TAG, "can't find target trans %u or the result is illegal", transId);
+        LOGE(TAG, "can't find target trans %u or the result is illegal", transId);
         return NSTACKX_EFAILED;
     }
     *totalBytes = totalBytesPtr;
@@ -1873,7 +1869,7 @@ uint8_t GetBlockHeadFlag(uint8_t isStartFrame, uint8_t isEndFrame)
 void FileManagerCLearReadOutSet(FileListTask *fileList)
 {
     if (PthreadMutexLock(&fileList->newReadOutSet.lock) != 0) {
-        DFILE_LOGE(TAG, "pthread mutex lock error");
+        LOGE(TAG, "pthread mutex lock error");
         return;
     }
 
@@ -1881,7 +1877,7 @@ void FileManagerCLearReadOutSet(FileListTask *fileList)
     fileList->newReadOutSet.fileId = 0;
 
     if (PthreadMutexUnlock(&fileList->newReadOutSet.lock) != 0) {
-        DFILE_LOGE(TAG, "pthread mutex unlock error");
+        LOGE(TAG, "pthread mutex unlock error");
         return;
     }
 }
@@ -1938,7 +1934,7 @@ int32_t FileManagerGetReceivedFiles(FileManager *fileManager, uint16_t transId, 
                                     uint8_t fileIdSuccessFlag[], uint32_t *fileNum)
 {
     FileListTask *fileList = NULL;
-    uint8_t isErrorOccurred;
+    uint8_t isErrorOccured;
 
     if (fileNum == NULL || *fileNum == 0) {
         return NSTACKX_EFAILED;
@@ -1949,8 +1945,8 @@ int32_t FileManagerGetReceivedFiles(FileManager *fileManager, uint16_t transId, 
         return NSTACKX_EFAILED;
     }
 
-    fileList = GetFileListById(&fileManager->taskList, transId, &isErrorOccurred);
-    if (isErrorOccurred) {
+    fileList = GetFileListById(&fileManager->taskList, transId, &isErrorOccured);
+    if (isErrorOccured) {
         fileManager->errCode = FILE_MANAGER_EMUTEX;
         NotifyFileManagerMsg(fileManager, FILE_MANAGER_INNER_ERROR);
         *fileNum = 0;
@@ -1969,11 +1965,11 @@ int32_t FileManagerSetAllDataReceived(FileManager *fileManager, uint16_t transId
     int32_t ret = NSTACKX_EFAILED;
     List *list = NULL;
     if (CheckReceiverManager(fileManager) != NSTACKX_EOK) {
-        DFILE_LOGE(TAG, "invalid input");
+        LOGE(TAG, "invalid input");
         return NSTACKX_EINVAL;
     }
     if (PthreadMutexLock(&fileManager->taskList.lock) != 0) {
-        DFILE_LOGE(TAG, "pthread mutex lock error");
+        LOGE(TAG, "pthread mutex lock error");
         goto L_ERR_FILE_MANAGER;
     }
     LIST_FOR_EACH(list, &fileManager->taskList.head) {
@@ -1986,7 +1982,7 @@ int32_t FileManagerSetAllDataReceived(FileManager *fileManager, uint16_t transId
         }
     }
     if (PthreadMutexUnlock(&fileManager->taskList.lock) != 0) {
-        DFILE_LOGE(TAG, "pthread mutex unlock error");
+        LOGE(TAG, "pthread mutex unlock error");
         goto L_ERR_FILE_MANAGER;
     }
     return ret;
@@ -2004,7 +2000,7 @@ void ClearTransStateList(DFileSession *session)
         return;
 
     if (PthreadMutexLock(&session->tranIdStateList.lock) != 0) {
-        DFILE_LOGE(TAG, "pthread mutex lock error");
+        LOGE(TAG, "pthread mutex lock error");
         return;
     }
 
@@ -2016,7 +2012,7 @@ void ClearTransStateList(DFileSession *session)
     }
 
     if (PthreadMutexUnlock(&session->tranIdStateList.lock) != 0) {
-        DFILE_LOGE(TAG, "pthread mutex unlock error");
+        LOGE(TAG, "pthread mutex unlock error");
         return;
     }
 
@@ -2050,7 +2046,7 @@ int32_t SetTransIdState(DFileSession *session, uint16_t transId, TransIdState st
         }
         if (session->tranIdStateList.size == session->tranIdStateList.maxSize) {
             if (MutexListPopFront(&session->tranIdStateList, &curFront, &isPoped) != NSTACKX_EOK) {
-                DFILE_LOGE(TAG, "Pop tranIdStateList head error");
+                LOGE(TAG, "Pop tranIdStateList head error");
                 errorFlag = NSTACKX_TRUE;
             }
             if (isPoped) {
@@ -2080,7 +2076,7 @@ TransStateNode *GetTransIdState(DFileSession *session, uint16_t transId, TransId
         return NULL;
 
     if (PthreadMutexLock(&session->tranIdStateList.lock) != 0) {
-        DFILE_LOGE(TAG, "pthread mutex lock error");
+        LOGE(TAG, "pthread mutex lock error");
         return NULL;
     }
     LIST_FOR_EACH(pos, &session->tranIdStateList.head) {
@@ -2093,7 +2089,7 @@ TransStateNode *GetTransIdState(DFileSession *session, uint16_t transId, TransId
     }
 
     if (PthreadMutexUnlock(&session->tranIdStateList.lock) != 0) {
-        DFILE_LOGE(TAG, "pthread mutex unlock error");
+        LOGE(TAG, "pthread mutex unlock error");
         return NULL;
     }
     return (find ? node : NULL);
@@ -2113,7 +2109,7 @@ int32_t IsTransIdDone(DFileSession *session, uint16_t transId)
     }
 
     if (state == STATE_TRANS_DONE) {
-        DFILE_LOGE(TAG, "trans %u is transfer done already", transId);
+        LOGE(TAG, "trans %u is transfer done already", transId);
         return NSTACKX_EOK;
     }
 

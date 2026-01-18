@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -20,7 +20,7 @@
 #include "res.h"
 #include "callbacks.h"
 #include "epoll_app.h"
-#include "fillp_dfx.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -526,7 +526,7 @@ FILLP_INT32 FtStartStopTrace(IN FILLP_UINT8 traceObjType, IN FILLP_INT traceObj,
                   traceObj    - user should pass the FtSocket identification.
                           to set the indication for that particular socket.
                           (0xFFFFFFFF - means for all the sockets)
-                  traceHandle  - traceHandle which will be transparently
+                  traceHandle  - traceHandle which will be transperantly
                           passed to user while giving indication. 0xFFFFFFFF is the invalid handle.
 
     Output      : None
@@ -736,7 +736,7 @@ void FillpDebugCmdSetPrintLevel(FILLP_CONST void  *content)
     Description : This function will be invoked by the Adapter to print debg/
                     information related socket level stack config.
 
-    Input       : resource : config resource structure to print info
+    Input       : resource : config resorce structure to print info
 
     Output      : None
 
@@ -824,6 +824,7 @@ void FillpDebugCmdSocketConfigRes(FILLP_CONST void  *content)
 
     if (content == FILLP_NULL_PTR) {
         FILLP_LOGERR("Input pointer is NULL");
+
         return;
     }
 
@@ -948,7 +949,7 @@ void FillpDebugControl(
             FillpDebugCmdShowInitRes();
             break;
 
-        case FILLP_DBGCMD_SHOW_SOCKET_INFO: /* SHOW all the information about the FILLP socket/connection */
+        case FILLP_DBGCMD_SHOW_SOCKET_INFO: /* SHOW all the information about the FILLP socket/conection */
 
             FILLP_SHOWDATABUTT("Operation Not Supported ");
 
@@ -970,7 +971,7 @@ void FillpDebugControl(
                   Adapter's callback function for LM functionality.
                   If A function Pointer is passed as NULL, then it is omitted
                   to Copy. So User/Adapter can call this function to Register
-                  the function pointers separately also.
+                  the function pointers seperately also.
 
     Input       :
                   lmFuncCallback - Pointer to LM callback function struct
@@ -1535,52 +1536,6 @@ FILLP_ULLONG DLL_API FtGetStackTime(FILLP_INT instInx)
 }
 
 /*******************************************************************************
-    Function    : FtApiRegEventCallbackFunc
-
-    Description : Register the event callback function on the socket.
-
-    Input       : fd          -  Indicates a socket created by the FtSocket API.
-                  evtCbkFunc  -  Pointer to event callback function FillpEvtCbkFunc.
-
-    Output      : None.
-
-    Return      :
-                  0 : Success
-                 -1 : Failure
-*******************************************************************************/
-FILLP_INT DLL_API FtApiRegEventCallbackFunc(IN FILLP_INT fd, IN FillpEvtCbkFunc evtCbkFunc)
-{
-    FILLP_UNUSED_PARA(fd);
-    FILLP_UNUSED_PARA(evtCbkFunc);
-    FILLP_LOGERR("regist evt callback not support yet");
-    SET_ERRNO(FILLP_EOPNOTSUPP);
-    return -1;
-}
-
-/*******************************************************************************
-    Function    : FtApiUnregEventCallbackFunc
-
-    Description : unregister the event callback function on the socket.
-
-    Input       : fd          -  Indicates a socket created by the FtSocket API.
-                  evtCbkFunc  -  Pointer to event callback function FillpEvtCbkFunc.
-
-    Output      : None.
-
-    Return      :
-                  0 : Success
-                 -1 : Failure
-*******************************************************************************/
-FILLP_INT DLL_API FtApiUnregEventCallbackFunc(IN FILLP_INT fd, IN FillpEvtCbkFunc evtCbkFunc)
-{
-    FILLP_UNUSED_PARA(fd);
-    FILLP_UNUSED_PARA(evtCbkFunc);
-    FILLP_LOGERR("unregist evt callback not support yet");
-    SET_ERRNO(FILLP_EOPNOTSUPP);
-    return -1;
-}
-
-/*******************************************************************************
     Function    : FtApiEventInfoGet
 
     Description : Get the event info on the socket.
@@ -1597,25 +1552,6 @@ FILLP_INT DLL_API FtApiUnregEventCallbackFunc(IN FILLP_INT fd, IN FillpEvtCbkFun
 FILLP_INT DLL_API FtApiEventInfoGet(IN FILLP_INT fd, IO FtEventCbkInfo *info)
 {
     return SockEventInfoGet(fd, info);
-}
-
-FILLP_INT DLL_API FtSetDfxEventCb(void *softObj, FillpDfxEventCb evtCb)
-{
-    return FillpDfxEvtCbSet(softObj, evtCb);
-}
-
-FILLP_INT FtDfxHiDumper(FILLP_UINT32 argc, const FILLP_CHAR **argv, void *softObj, FillpDfxDumpFunc dump)
-{
-#ifdef FILLP_ENABLE_DFX_HIDUMPER
-    return FillpDfxDump(argc, argv, softObj, dump);
-#else
-    (void)argc;
-    (void)argv;
-    (void)softObj;
-    (void)dump;
-    FILLP_LOGERR("unsupport FtFillpDfxDump");
-    return -1;
-#endif /* FILLP_ENABLE_DFX_HIDUMPER */
 }
 
 #ifdef __cplusplus

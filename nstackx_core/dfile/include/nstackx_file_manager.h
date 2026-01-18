@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2021 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -17,6 +17,8 @@
 #define NSTACKX_FILE_MANAGER_H
 
 #include "nstackx_epoll.h"
+#include "nstackx_list.h"
+#include "nstackx_dfile_frame.h"
 #ifdef MBEDTLS_INCLUDED
 #include "nstackx_mbedtls.h"
 #else
@@ -137,8 +139,8 @@ typedef struct {
 
 typedef struct {
     List list;
-    FileDataFrame *fileDataFrame;
     uint32_t sendLen;
+    FileDataFrame *fileDataFrame;
     uint8_t socketIndex;
 } BlockFrame;
 
@@ -167,18 +169,21 @@ typedef struct {
     List list;
     uint16_t transId;
     uint16_t fileNum;
-    int32_t errCode;
     FileInfo fileInfo[NSTACKX_DFILE_MAX_FILE_NUM];
     sem_t semStop;
-    TaskStopType stopType;
     uint32_t runStatus;
-    uint32_t innerRecvSize;
+    TaskStopType stopType;
+    uint8_t isOccupied;
+    int32_t errCode;
     uint16_t sendFileProcessed;
-    uint16_t recvFileProcessed;
     SendFilesOutSet newReadOutSet;
     MutexList sendRetranList; /* DATA:SendRetranBlock */
     MutexList recvBlockList; /* DATA:BlockFrame */
     List innerRecvBlockHead; /* DATA:BlockFrame */
+    uint32_t innerRecvSize;
+    uint16_t recvFileProcessed;
+    uint8_t isRecvEmptyFilesCreated;
+    uint8_t socketIndex;
     EpollDesc epollfd;
     List *eventNodeChain;
     FileListMsgReceiver msgReceiver;
@@ -186,23 +191,20 @@ typedef struct {
     CryptPara cryptPara;
     uint64_t bytesTransferredLastRecord;
     uint64_t totalBytes;
-    const char *storagePath; /* only useful for receiver */
-    const char *tarFile;
-    FILE *tarFd;
-    FileDataFrame *tarFrame;
-    FileInfo tarFileInfo;
-    uint8_t isOccupied;
-    uint8_t isRecvEmptyFilesCreated;
-    uint8_t socketIndex;
-    uint8_t allFileDataReceived;
     uint8_t hasUnInsetFrame;
+    const char *storagePath; /* only useful for receiver */
     uint8_t tarFlag;
     uint8_t smallFlag;
     uint8_t noSyncFlag;
     uint8_t tarFinished;
+    const char *tarFile;
+    FILE *tarFd;
     uint16_t blockOffset;
-    uint16_t maxFrameLength;
+    FileDataFrame *tarFrame;
+    FileInfo tarFileInfo;
     uint32_t bindedSendBlockListIdx;
+    uint16_t maxFrameLength;
+    uint8_t allFileDataReceived;
     uint32_t dataWriteTimeoutCnt;
     uint64_t bytesTransferred; /* only useful for non-tar sender */
 } FileListTask;
@@ -225,13 +227,11 @@ typedef struct {
     uint32_t runStatus;
     int32_t errCode;
     uint8_t isSender;
-    uint8_t transFlag;
-    uint8_t recvListOverIo;
     uint16_t maxFrameLength;
-    uint16_t typedPathNum;
     sem_t semTaskListNotEmpty;
     char *commonStoragePath;
     TypedStoragePath pathList[NSTACKX_MAX_STORAGE_PATH_NUM];
+    uint16_t typedPathNum;
     MutexList taskList; /* DATA:FileListTask */
     pthread_t fileManagerTid[NSTACKX_FILE_MANAGER_THREAD_NUM];
     EpollDesc epollfd;
@@ -245,9 +245,9 @@ typedef struct {
     uint64_t stoppedTasksBytesTransferred;
     uint64_t bytesTransferredLastRecord;
     atomic_t bytesTransferredInCurPeriod;
-    uint16_t sendFrameListNum;
     SendBlockFrameListPara sendBlockFrameListPara[NSTACKX_MAX_CLIENT_SEND_THREAD_NUM];
     uint32_t maxSendBlockListSize;
+    uint16_t sendFrameListNum;
     uint32_t maxRecvBlockListSize;
     uint64_t iorBytes;
     uint64_t iowBytes;
@@ -255,7 +255,9 @@ typedef struct {
     uint32_t iowRate;
     uint32_t iowMaxRate;
     uint32_t sendListFullTimes;
+    uint8_t transFlag;
     uint64_t iowCount; /* io write count in NSTACKX_WLAN_MAX_CONTROL_FRAME_TIMEOUT second */
+    uint8_t recvListOverIo;
 } FileManager;
 
 typedef struct {
@@ -452,7 +454,7 @@ uint16_t GetStandardBlockSize(const FileManager *fileManager);
 
 int32_t SetCryptPara(FileListTask *fileList, const uint8_t key[], uint32_t keyLen);
 
-FileListTask *GetFileListById(MutexList *taskList, uint16_t transId, uint8_t *isErrorOccurred);
+FileListTask *GetFileListById(MutexList *taskList, uint16_t transId, uint8_t *isErrorOccured);
 
 void RefreshBytesTransFerred(FileManager *fileManager, BlockFrame *frame);
 int32_t GetFileBlockListSize(MutexList *taskList, uint32_t *recvListAllSize, uint32_t *recvInnerAllSize);
