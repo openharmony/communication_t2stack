@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -15,7 +15,10 @@
 
 #ifndef FILLP_SOCKETS_H
 #define FILLP_SOCKETS_H
+#include "opt.h"
+#include "queue.h"
 #include "epoll.h"
+#include "hlist.h"
 #include "net.h"
 
 #ifdef FILLP_LINUX
@@ -51,12 +54,12 @@ struct GlobalAppCommon {
     FILLP_UINT32 maxServerAllowRecvCache;
     FILLP_UINT32 udpSendBufSize;
     FILLP_UINT32 recvBufSize;
-    FILLP_UINT32 disconnectRetryTimeout; /* Testability addition in the code it is 100. */
+    FILLP_UINT32 disconnectRetryTimeout; /* Testability addtion in the code it is 100. */
     FILLP_UINT32 sendCache;              /* size of send cache */
     FILLP_UINT32 recvCache;              /* size of recv cache  */
     FILLP_UINT32 connectTimeout;         /* seconds */
     FILLP_UINT16 reserve;                /* Now not used, need to remove it */
-    FILLP_UINT16 connRetryTimeout;       /* Testability addition in the code it is 10. */
+    FILLP_UINT16 connRetryTimeout;       /* Testability addtion in the code it is 10. */
     FILLP_BOOL enableNackDelay;
     FILLP_BOOL enlargePackIntervalFlag;
     FILLP_BOOL enableDateOptTimestamp;
@@ -91,26 +94,26 @@ struct FtSocket {
     /* These following members are used for connection and referenced by FtNetconn */
     FILLP_INT coreErrType[MAX_SPUNGE_TYPE_NUM];
 
+    struct HlistNode listenNode;
+    FILLP_INT listenBacklog;
+    SYS_ARCH_SEM acceptSem;
+    FillpQueue *acceptBox;
+
     void *recvPktBuf;
     struct SpungeInstance *inst;
     void *traceHandle; /* Handle provided by FillpTrace callback */
 
-    struct HlistNode listenNode;
-    SYS_ARCH_SEM acceptSem;
-    FillpQueue *acceptBox;
-    FILLP_INT listenBacklog;
-
-    FILLP_UINT32 errEvent;
     struct EventPoll *eventEpoll;
     SysArchAtomic rcvEvent;
     SysArchAtomic sendEvent;
     SysArchAtomic sendEventCount;
     SysArchAtomic epollWaiting;
+    FILLP_UINT32 errEvent;
 
     struct Hlist epTaskList;
     SYS_ARCH_SEM epollTaskListLock;
 
-    /* It means, that A ft-socket can be registered up to 10 epoll instances, not
+    /* It means, that A ft-socket can be registered upto 10 epoll instances, not
        more than that. This value is compile config controlled, App can
        increase the number if expects more epoll instances for its user application
     */
@@ -123,22 +126,22 @@ struct FtSocket {
     FILLP_LLONG jitter;
     FILLP_LLONG transmit;
 
-    FILLP_UINT16 flags;
     FILLP_UINT16 sockAddrType;
     FILLP_INT socketType;     // get from SockSocket
     FILLP_INT socketProtocol; // get from SockSocket
+    FILLP_UINT16 flags;
 
     FILLP_BOOL isListenSock;
-    FILLP_BOOL isSockBind;
-    FILLP_BOOL lingering;
+
     FILLP_UINT8 traceFlag; /* Flag for enable indication User/Network */
     FILLP_INT freeTimeCount;
-    FILLP_INT err;
-
+    FILLP_BOOL isSockBind;
     SYS_ARCH_SEM connBlockSem;     /* Used when do connect */
-    SYS_ARCH_RW_SEM sockConnSem;   /* Used to protect socket resource not freed */
+    SYS_ARCH_RW_SEM sockConnSem;   /* Used to protect socket resource not freeed */
     SYS_ARCH_SEM sockCloseProtect; /* To make sure that only one close message posted to fillp thread */
+    FILLP_INT err;
     struct GlobalAppResource resConf; /* Total size is 15 * sizeof uint32 */
+    FILLP_BOOL lingering;
     struct linger fillpLinger;
     FILLP_INT directlySend; /* directly send packet in the app thread instead of in the main thread */
 };

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -30,8 +30,7 @@ extern "C" {
 
 #define FILLP_PCB_GET_CONN(pcb) (struct FtNetconn *)((struct SpungePcb *)((pcb)->spcb))->conn
 #define FILLP_UNRECV_THRESHOLD 2
-
-IGNORE_OVERFLOW static inline FILLP_INT FillpSkiplistCmp(void *t1, void *t2)
+static inline FILLP_INT FillpSkiplistCmp(void *t1, void *t2)
 {
     struct FillpPcbItem *value1 = (struct FillpPcbItem *)t1;
     struct FillpPcbItem *value2 = (struct FillpPcbItem *)t2;
@@ -43,7 +42,7 @@ IGNORE_OVERFLOW static inline FILLP_INT FillpSkiplistCmp(void *t1, void *t2)
     return ((FILLP_INT32)(value1->seqNum - value2->seqNum)) > 0;
 }
 
-IGNORE_OVERFLOW static inline FILLP_INT FillpSkiplistRecvcmp(void *t1, void *t2)
+static inline FILLP_INT FillpSkiplistRecvcmp(void *t1, void *t2)
 {
     struct FillpPcbItem *value1 = (struct FillpPcbItem *)t1;
     struct FillpPcbItem *value2 = (struct FillpPcbItem *)t2;
@@ -64,7 +63,7 @@ static FILLP_INT FillpInitSendpcbUnackList(struct FillpSendPcb *pcb)
     pcb->unackList.hashMap =
         (struct Hlist *)SpungeAlloc(pcb->unackList.size, sizeof(struct Hlist), SPUNGE_ALLOC_TYPE_CALLOC);
     if (pcb->unackList.hashMap == FILLP_NULL_PTR) {
-        FILLP_LOGERR("Failed to allocate memory for hash map");
+        FILLP_LOGERR("Failed to allocate memory for hash map \r\n");
 
         SkiplistDestroy(&pcb->unrecvList);
         return ERR_NOBUFS;
@@ -133,26 +132,26 @@ static FILLP_INT InitSendPcbSimplePar(struct FillpPcb *fpcb)
     struct FillpSendPcb *pcb = &fpcb->send;
     FILLP_INT ret;
     if (fpcb->mpSendSize == 0) {
-        FILLP_LOGERR("FillpInitSendpcb:fpcb->mpSendSize is zero");
+        FILLP_LOGERR("FillpInitSendpcb:fpcb->mpSendSize is zero \r\n");
         return ERR_NOBUFS;
     }
 
     ret = SkiplistInit(&pcb->unrecvList, FillpSkiplistCmp);
     if (ret != ERR_OK) {
-        FILLP_LOGERR("FillpInitSendpcb:SkiplistInit fails");
+        FILLP_LOGERR("FillpInitSendpcb:SkiplistInit fails \r\n");
         return ERR_COMM;
     }
 
     ret = SkiplistInit(&pcb->itemWaitTokenLists, FillpSkiplistCmp);
     if (ret != ERR_OK) {
-        FILLP_LOGERR("SkiplistInit redunList fails");
+        FILLP_LOGERR("SkiplistInit redunList fails \r\n");
         SkiplistDestroy(&pcb->unrecvList);
         return ERR_COMM;
     }
 
     ret = SkiplistInit(&pcb->redunList, FillpSkiplistCmp);
     if (ret != ERR_OK) {
-        FILLP_LOGERR("SkiplistInit redunList fails");
+        FILLP_LOGERR("SkiplistInit redunList fails \r\n");
         SkiplistDestroy(&pcb->unrecvList);
         SkiplistDestroy(&pcb->itemWaitTokenLists);
         return ERR_COMM;
@@ -272,7 +271,7 @@ static FILLP_INT FillpInitSendpcb(struct FillpPcb *fpcb)
 #ifdef SOCK_SEND_SEM
     ret = SYS_ARCH_SEM_INIT(&pcb->sendSem, (FILLP_ULONG)initCacheSize);
     if (ret != FILLP_OK) {
-        FILLP_LOGERR("FillpInitSendpcb:SYS_ARCH_SEM_INIT fails");
+        FILLP_LOGERR("FillpInitSendpcb:SYS_ARCH_SEM_INIT fails \r\n");
 
         SpungeFree(pcb->unackList.hashMap, SPUNGE_ALLOC_TYPE_CALLOC);
         pcb->unackList.hashMap = FILLP_NULL_PTR;
@@ -444,6 +443,8 @@ static void FillpInitStastics(struct FillpPcb *fpcb)
     pcb->appFcStastics.periodSendPktLossHighPrecision = 0;
     pcb->appFcStastics.periodSendBits = 0;
     pcb->appFcStastics.periodSendRateBps = 0;
+
+    return;
 }
 
 static void FillpPcbFreeRecvItemArray(struct FillpRecvPcb *pcb)
@@ -504,6 +505,7 @@ static void FillpPcbRemoveRecv(struct FillpPcb *fpcb)
     HLIST_INIT(&(pcb->nackList));
 
     (void)SYS_ARCH_SEM_DESTROY(&pcb->recvSem);
+    return;
 }
 
 void FillpPcbSendFc(struct FillpPcb *fpcb)
@@ -627,6 +629,16 @@ static void FillpPcbRemoveSend(struct FillpPcb *fpcb)
 #ifdef SOCK_SEND_SEM
     SYS_ARCH_SEM_DESTROY(&pcb->sendSem);
 #endif /* SOCK_SEND_SEM */
+    return;
+}
+
+static void FillpPcbRemoveStastics(struct FillpPcb *fpcb)
+{
+    struct FillpStatisticsPcb *pcb = &fpcb->statistics;
+
+    (void)pcb;
+
+    return;
 }
 
 void FillpPcbRemoveTimers(struct FillpPcb *fpcb)
@@ -725,11 +737,13 @@ void FillpRemovePcb(struct FillpPcb *pcb)
 
     FillpPcbRemoveRecv(pcb);
     FillpPcbRemoveSend(pcb);
+    FillpPcbRemoveStastics(pcb);
     FillpPcbRemoveTimers(pcb);
     FillpFcDeinit(pcb);
 
     pcb->isFinAckReceived = FILLP_FALSE;
     pcb->resInited = FILLP_FALSE;
+    return;
 }
 
 FILLP_UINT32 FillpGetSendpcbUnackListPktNum(struct FillpSendPcb *pcb)

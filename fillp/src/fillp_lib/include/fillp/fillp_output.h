@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -15,6 +15,8 @@
 
 #ifndef FILLP_OUTPUT_H
 #define FILLP_OUTPUT_H
+#include "fillptypes.h"
+#include "fillp_pcb.h"
 #include "fillp.h"
 
 #ifdef __cplusplus
@@ -27,6 +29,7 @@ FILLP_INT FillpSendItem(struct FillpPcbItem *item, struct FillpPcb *fpcb);
 FILLP_UINT32 FillpSendOne(struct FillpPcb *pcb, FILLP_UINT32 totalSendBytes, FILLP_UINT32 sendPktNum);
 void FillpSendAdhocpackToDetectRtt(struct FillpPcb *pcb);
 FILLP_BOOL FillpSendPackWithPcbBuffer(struct FillpPcb *pcb);
+FILLP_BOOL FillpSendPack(struct FillpPcb *pcb, struct FillpPktPack *pack);
 
 #ifdef __cplusplus
 }

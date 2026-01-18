@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -13,11 +13,13 @@
  * limitations under the License.
  */
 
+#ifdef FILLP_LINUX
+#include <errno.h>
+#endif /* FILLP_LINUX */
 #include "spunge_stack.h"
 #include "spunge_app.h"
 #include "res.h"
 #include "socket_common.h"
-#include "fillp_dfx.h"
 #include "spunge_message.h"
 
 #ifdef __cplusplus
@@ -57,7 +59,6 @@ FillpErrorType SpungePostMsg(struct SpungeInstance *inst, void *value, FILLP_INT
         if (SYS_ARCH_SEM_WAIT(&msg->syncSem)) {
             FILLP_LOGWAR("sem wait failed");
             (void)SYS_ARCH_ATOMIC_DEC(&inst->msgUsingCount, 1);
-            DympFree(msg);
             return ERR_COMM;
         }
         DympFree(msg);
@@ -80,6 +81,7 @@ static void SpungeHandleMsgAllocSock(void *value, struct SpungeInstance *inst)
     struct FtNetconn *conn = FillpNetconnAlloc(sock->sockAddrType, inst);
     if (conn == FILLP_NULL_PTR) {
         FILLP_LOGERR("Error to alloc netconn");
+
         sock->allocState = SOCK_ALLOC_STATE_ERR;
         SET_ERRNO(FILLP_ENOMEM);
         sock->coreErrType[MSG_TYPE_ALLOC_SOCK] = FILLP_EMFILE;
@@ -99,6 +101,7 @@ static void SpungeHandleMsgAllocSock(void *value, struct SpungeInstance *inst)
     struct SockOsSocket *osSock = SpungeAllocSystemSocket(msg->domain, msg->type, msg->protocol);
     if (osSock == FILLP_NULL_PTR) {
         FILLP_LOGERR("sock alloc sys sock failed. socketId=%d", sock->index);
+
         sock->allocState = SOCK_ALLOC_STATE_ERR;
         FILLP_INT errorNum = FtGetErrno();
         if (errorNum == ERR_OK) {
@@ -133,6 +136,7 @@ static void SpungeHandleMsgFreeSockEagain(void *value, struct SpungeInstance *in
     }
 
     SpungeFreeSock(sock);
+    return;
 }
 
 static FILLP_INT SpungeListenMsgCheckState(void *value, struct SpungeInstance *inst,
@@ -363,6 +367,7 @@ static void SpungeHandleMsgConnect(void *value, struct SpungeInstance *inst)
 
 FAIL:
     (void)SYS_ARCH_SEM_POST(&sock->connBlockSem);
+    return;
 }
 
 static FILLP_INT SpungeBindMsgCheckState(struct FtSocket *sock, struct SockOsSocket **pOsSock,
@@ -521,7 +526,7 @@ static void SpungeHandleMsgConnAccepted(void *value, struct SpungeInstance *inst
                                                       g_resource.flowControl.maxRecvRate);
 
     FILLP_LOGINF("fillp_sock_id:%d "
-        "Accepted connection established time = %lld, local seq num = %u, "
+        "Accepted connection estabished time = %lld, local seq num = %u, "
         "local pkt num = %u, peer seq num = %u peer pkt num = %u, maxRate= %u maxRecvRate= %u",
         sock->index, SYS_ARCH_GET_CUR_TIME_LONGLONG(), netconn->pcb->fpcb.send.seqNum, netconn->pcb->fpcb.send.pktNum,
         netconn->pcb->fpcb.recv.seqNum, netconn->pcb->fpcb.recv.pktNum, sock->resConf.flowControl.maxRate,
@@ -583,7 +588,6 @@ static void SpungeHandleMsgDoShutdown(void *value, struct SpungeInstance *inst)
         goto FINISH;
     }
 
-    FillpDfxSockLinkAndQosNotify(sock, FILLP_DFX_LINK_CLOSE);
     SpungeShutdownSock(sock, howValue);
 
     if (readShut && writeShut) {
@@ -602,6 +606,7 @@ static void SpungeHandleMsgDoShutdown(void *value, struct SpungeInstance *inst)
 
 FINISH:
     sock->coreErrType[MSG_TYPE_DO_SHUTDOWN] = ERR_OK;
+    return;
 }
 
 static void SpungeCloseMsgFreeSrc(struct FtNetconn *conn, struct FtSocket *sock)
@@ -633,6 +638,7 @@ static void SpungeCloseMsgFreeSrc(struct FtNetconn *conn, struct FtSocket *sock)
         case CONN_STATE_CONNECTED:
             FillpEnableFinCheckTimer(&conn->pcb->fpcb);
             break;
+
         default:
             break;
     }
@@ -684,12 +690,12 @@ static void SpungeHandleMsgClose(void *value, struct SpungeInstance *inst)
     conn->closeSet = 1;
     sock->allocState = SOCK_ALLOC_STATE_WAIT_TO_CLOSE;
 
-    FillpDfxSockLinkAndQosNotify(sock, FILLP_DFX_LINK_CLOSE);
     SpungeShutdownSock(sock, SPUNGE_SHUT_RDWR);
 
     SpungeCloseMsgFreeSrc(conn, sock);
 
     sock->coreErrType[MSG_TYPE_DO_CLOSE] = ERR_OK;
+    return;
 }
 
 static void SpungeHandleMsgSetSendBuf(void *value, struct SpungeInstance *inst)
@@ -724,6 +730,7 @@ static void SpungeHandleMsgSetSendBuf(void *value, struct SpungeInstance *inst)
     }
 
     sock->coreErrType[MSG_TYPE_SET_SEND_BUF] = ERR_OK;
+    return;
 }
 
 static void SpungeHandleMsgSetRecvBuf(void *value, struct SpungeInstance *inst)
@@ -759,6 +766,7 @@ static void SpungeHandleMsgSetRecvBuf(void *value, struct SpungeInstance *inst)
     }
 
     sock->coreErrType[MSG_TYPE_SET_RECV_BUF] = ERR_OK;
+    return;
 }
 
 static void SpungeHandleMsgSetNackDelay(void *value, struct SpungeInstance *inst)
@@ -794,6 +802,7 @@ static void SpungeHandleMsgSetNackDelay(void *value, struct SpungeInstance *inst
     }
 
     SpungeFree(cfg, SPUNGE_ALLOC_TYPE_MALLOC);
+    return;
 }
 
 static void SpungeHandleMsgGetEvtInfo(void *value, struct SpungeInstance *inst)
@@ -814,6 +823,7 @@ static void SpungeHandleMsgGetEvtInfo(void *value, struct SpungeInstance *inst)
 
     FILLP_UNUSED_PARA(info);
     sock->coreErrType[MSG_TYPE_GET_EVENT_INFO] = ERR_PARAM;
+    return;
 }
 
 static void SpungeHandleMsgSetKeepAlive(void *value, struct SpungeInstance *inst)
@@ -839,17 +849,6 @@ static void SpungeHandleMsgSetKeepAlive(void *value, struct SpungeInstance *inst
     sock->coreErrType[MSG_TYPE_SET_KEEP_ALIVE] = ERR_OK;
 }
 
-static void SpungeHandleMsgSetHiEventCb(void *value, struct SpungeInstance *inst)
-{
-    struct SpungeHiEventCbMsg *msg = (struct SpungeHiEventCbMsg *)value;
-    if (value == FILLP_NULL_PTR) {
-        FILLP_LOGERR("value is NULL");
-        return;
-    }
-    FILLP_UNUSED_PARA(inst);
-    FillpDfxDoEvtCbSet(msg->softObj, msg->cb);
-}
-
 /*
 Description: Message handler
 Value Range: None
@@ -870,7 +869,6 @@ spungeMsgHandler g_msgHandler[MSG_TYPE_END] = {
     SpungeHandleMsgSetNackDelay,            /* MSG_TYPE_SET_NACK_DELAY */
     SpungeHandleMsgGetEvtInfo,              /* MSG_TYPE_GET_EVENT_INFO */
     SpungeHandleMsgSetKeepAlive,            /* MSG_TYPE_SET_KEEP_ALIVE */
-    SpungeHandleMsgSetHiEventCb,            /* MSG_TYPE_SET_HIEVENT_CB */
 };
 
 static FILLP_INT SpungeMsgCreatePoolCb(DympItemType *item)
@@ -893,6 +891,8 @@ static void SpungeMsgDestroyPoolCb(DympItemType *item)
     if (ret != FILLP_OK) {
         FILLP_LOGERR("sys arch sem destroy failed ALARM !!\n");
     }
+
+    return;
 }
 
 void *SpungeMsgCreatePool(int initSize, int maxSize)
@@ -905,6 +905,7 @@ void *SpungeMsgCreatePool(int initSize, int maxSize)
 void SpungeMsgPoolDestroy(DympoolType *msgPool)
 {
     DympDestroyPool(msgPool);
+    return;
 }
 
 #ifdef __cplusplus

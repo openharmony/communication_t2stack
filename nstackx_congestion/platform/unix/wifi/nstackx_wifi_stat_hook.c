@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2021 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -15,12 +15,26 @@
 
 #include "nstackx_wifi_stat_hook.h"
 
+#include <arpa/inet.h>
+#include <ctype.h>
+#include <errno.h>
 #include <securec.h>
+#include <stdlib.h>
 #include <unistd.h>
 
+#include <sys/stat.h>
+#include <sys/timerfd.h>
+#include <linux/socket.h>
 
 #include "nstackx_congestion.h"
 #include "nstackx_error.h"
+#include "nstackx_log.h"
+#include "nstackx_timer.h"
+#include "nstackx_util.h"
+#include "nstackx_dev.h"
+
+
+#define TAG "nStackXCongestion"
 
 static GetWifiInfoHook g_getWifiInfoHook = NULL;
 

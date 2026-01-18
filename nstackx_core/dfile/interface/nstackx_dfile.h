@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2021 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -30,6 +30,7 @@
 #endif
 
 #include "nstackx_error.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -75,7 +76,6 @@ typedef enum {
     DFILE_ON_TRANS_IN_PROGRESS,
     DFILE_ON_SESSION_TRANSFER_RATE,
     DFILE_ON_BIND,
-    DFILE_ON_CLEAR_POLICY_FILE_LIST,
 } DFileMsgType;
 
 enum {
@@ -84,9 +84,6 @@ enum {
     CAPS_WLAN_CATAGORY,
     CAPS_NO_RTT,
     CAPS_RESERVED, /* for multipath check of old version */
-    CAPS_ALG_NORATE, // NoRate algorithm
-    CAPS_RESUMABLE_TRANS,
-    CAPS_ZEROCOPY,
     /* add more capability here */
     CAPS_MAX,
 };
@@ -126,18 +123,6 @@ enum {
  *
  * It's invalid when for other message types.
  */
-typedef enum {
-    FILE_STAT_COMPLETE,     /* whole file transfered*/
-    FILE_STAT_NOT_COMPLETE, /*file start transfered but not whole*/
-    FILE_STAT_NOT_START,    /*file not start transfered*/
-    FILE_STAT_BUTT,
-} DFileFileStat;
-
-typedef struct {
-    char *file;
-    DFileFileStat stat;
-} DFileFileInfo;
-
 typedef struct {
     struct {
         const char **files;
@@ -145,16 +130,12 @@ typedef struct {
         uint16_t transId;
         char *userData;
     } fileList;
-    struct {
-        uint32_t fileNum;
-        const DFileFileInfo *fileInfo;
-    } clearPolicyFileList;
+    int32_t errorCode;
     struct {
         uint16_t transId;
         uint64_t totalBytes;
         uint64_t bytesTransferred;
     } transferUpdate;
-    int32_t errorCode;
     uint32_t rate;
     struct sockaddr_in sockAddr[NSTACKX_MULTI_PATH_NUM];
 } DFileMsg;
@@ -162,8 +143,8 @@ typedef struct {
 typedef struct {
     const char *files[NSTACKX_DFILE_MAX_FILE_NUM];
     const char *remotePath[NSTACKX_DFILE_MAX_FILE_NUM];
-    const char *userData;
     uint32_t fileNum;
+    const char *userData;
     uint16_t pathType;
     uint8_t tarFlag : 1;
     uint8_t smallFlag : 1;
@@ -203,67 +184,6 @@ typedef struct {
     struct sockaddr_in *addr;
     socklen_t addrLen;
 } NSTACKX_ServerParaMp;
-
-/* nStack HIEVENT接口设计 */
-typedef enum {
-    DFile_EVENT_TYPE_FAULT,
-    DFile_EVENT_TYPE_STATISTIC,
-    DFile_EVENT_TYPE_SECURITY,
-    DFile_EVENT_TYPE_BEHAVIOR,
-} DFileEventType;
-
-typedef enum {
-    DFile_EVENT_LEVEL_CRITICAL,
-    DFile_EVENT_LEVEL_MINOR,
-} DFileEventLevel;
-
-typedef enum {
-    DFile_PARAM_TYPE_BOOL,
-    DFile_PARAM_TYPE_UINT8,
-    DFile_PARAM_TYPE_UINT16,
-    DFile_PARAM_TYPE_INT32,
-    DFile_PARAM_TYPE_UINT32,
-    DFile_PARAM_TYPE_UINT64,
-    DFile_PARAM_TYPE_FLOAT,
-    DFile_PARAM_TYPE_DOUBLE,
-    DFile_PARAM_TYPE_STRING
-} DFileEventParamType;
-
-enum {
-    DFILE_LOG_LEVEL_OFF     = 0,
-    DFILE_LOG_LEVEL_FATAL   = 1,
-    DFILE_LOG_LEVEL_ERROR   = 2,
-    DFILE_LOG_LEVEL_WARNING = 3,
-    DFILE_LOG_LEVEL_INFO    = 4,
-    DFILE_LOG_LEVEL_DEBUG   = 5,
-    DFILE_LOG_LEVEL_END,
-};
-
-#define DFile_EVENT_NAME_LEN 33
-#define DFile_EVENT_TAG_LEN 16
-
-typedef struct {
-    DFileEventParamType type;
-    char name[DFile_EVENT_NAME_LEN];
-    union {
-        uint8_t u8v;
-        uint16_t u16v;
-        int32_t i32v;
-        uint32_t u32v;
-        uint64_t u64v;
-        float f;
-        double d;
-        char str[DFile_EVENT_NAME_LEN];
-    } value;
-} DFileEventParam;
-
-typedef struct {
-    char eventName[DFile_EVENT_NAME_LEN];
-    DFileEventType type;
-    DFileEventLevel level;
-    uint32_t paramNum;
-    DFileEventParam *params;
-} DFileEvent;
 
 /*
  * Create DFile server session.
@@ -388,51 +308,6 @@ NSTACKX_EXPORT uint32_t NSTACKX_DFileGetCapabilities(void);
 
 NSTACKX_EXPORT int32_t NSTACKX_DFileSetCapabilities(uint32_t capabilities, uint32_t value);
 
-typedef void (*DFileDumpFunc)(void *softObj, const char *data, uint32_t len);
-
-NSTACKX_EXPORT int32_t NSTACKX_DFileDump(uint32_t argc, const char **arg, void *softObj, DFileDumpFunc dump);
-
-/* 软总线提供的回调支持多线程调用，事件的触发频率要求(表格整理出来，什么时候触发，触发频率) */
-typedef void (*DFileEventFunc)(void *softObj, const DFileEvent *info);
-
-NSTACKX_EXPORT void NSTACKX_DFileSetEventFunc(void *softObj, DFileEventFunc func);
-
-typedef void (*DFileLogCallback)(const char *moduleName, uint32_t logLevel, const char *format, ...);
-
-/*
- * Set the DFile log implementation
- */
-NSTACKX_EXPORT int32_t NSTACKX_DFileRegisterLogCallback(DFileLogCallback userLogCallback);
-NSTACKX_EXPORT void NSTACKX_DFileRegisterDefaultLog(void);
-
-/**
- * get DFILE_ON_CLEAR_POLICY_FILE_LIST event callback.
- * @brief Gets file list with file state
- * @param[in] sessionId the session id of the session
- * @return 0 on success, negative value on failure
- */
-NSTACKX_EXPORT int32_t NSTACKX_DFileSessionGetFileList(int32_t sessionId);
-
-typedef enum {
-    /* the priority of socket, value is same as IP_TOS, vallen is siezeof(uint8_t) */
-    OPT_TYPE_SOCK_PRIO,
-    OPT_TYPE_BUTT
-} DFileOptType;
-
-typedef struct {
-    DFileOptType optType;
-    uint32_t valLen; /* length of value */
-    uint64_t value;  /* the option value, could be a pointer */
-} DFileOpt;
-
-/*
- * set dfile session opt
- * @brief Sets DFile session options. for client session, Recommend to configure after DFILE_ON_CONNECT_SUCCESS.
- * @param[in] sessionId the session id of the session
- * @param[in] opt option tlv
- * @return 0 on success, negative value on failure
- */
-NSTACKX_EXPORT int32_t NSTACKX_DFileSetSessionOpt(int32_t sessionId, const DFileOpt *opt);
 #ifdef __cplusplus
 }
 #endif

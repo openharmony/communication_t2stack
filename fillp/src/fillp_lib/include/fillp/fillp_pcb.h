@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -15,7 +15,12 @@
 
 #ifndef FILLP_PCB_H
 #define FILLP_PCB_H
+#include "opt.h"
+#include "fillp_os.h"
 #include "fillpinc.h"
+#include "hlist.h"
+#include "mem_pool.h"
+#include "opt.h"
 #include "skiplist.h"
 #include "timing_wheel.h"
 #include "fillp_algorithm.h"
@@ -73,9 +78,9 @@ struct FillpRecvPcb {
     void *itemPool;
     void *privItemPool;
     FILLP_UINT32 oppositeSetRate; /* The Max Opposite Rate Allowed */
-    FILLP_UINT32 seqNum;          /* the newest continuous seq num received */
-    FILLP_UINT32 endSeqNum;       /* the newest seq num received */
-    FILLP_UINT32 pktNum;          /* the newest pkt num received */
+    FILLP_UINT32 seqNum;          /* the newest continuous seq num recieved */
+    FILLP_UINT32 endSeqNum;       /* the newest seq num recieved */
+    FILLP_UINT32 pktNum;          /* the newest pkt num recieved */
     FILLP_UINT32 lastPackSeqNum;
     FILLP_UINT32 lastPackPktNum;
     FILLP_UINT32 pktStartNum;

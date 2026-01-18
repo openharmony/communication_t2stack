@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -73,7 +73,7 @@ static FILLP_INT SpungeInitSocket(struct FtSocket *sock)
     (void)memset_s(&sock->fillpLinger, sizeof(sock->fillpLinger), 0, sizeof(sock->fillpLinger));
     sock->directlySend = 0;
 
-    /* post here, so that now sock close can acquire lock */
+    /* post here, so that now sock close can aquire lock */
     if (SYS_ARCH_SEM_POST(&sock->sockCloseProtect) != ERR_OK) {
         return ERR_FAILURE;
     }
@@ -87,6 +87,7 @@ struct FtSocket *SpungeAllocSock(FILLP_INT allocType)
 
     if ((g_spunge == FILLP_NULL_PTR) || (!g_spunge->hasInited) || (g_spunge->sockTable == FILLP_NULL_PTR)) {
         FILLP_LOGERR("FILLP Not yet Initialized");
+
         return FILLP_NULL_PTR;
     }
 
@@ -97,7 +98,7 @@ struct FtSocket *SpungeAllocSock(FILLP_INT allocType)
 
     sock = SockAllocSocket();
     if (sock == FILLP_NULL_PTR) {
-        FILLP_LOGERR("sockets not available from the sockTable->freeQueqe");
+        FILLP_LOGERR("sockets not avaliable from the sockTable->freeQueqe");
         return FILLP_NULL_PTR;
     }
 
@@ -135,6 +136,8 @@ void SpungeDelEpInstFromFtSocket(struct FtSocket *sock, FILLP_INT epFd)
     if (sock->associatedEpollInstanceIdx > 0) {
         sock->associatedEpollInstanceIdx--;
     }
+
+    return;
 }
 
 #ifdef __cplusplus

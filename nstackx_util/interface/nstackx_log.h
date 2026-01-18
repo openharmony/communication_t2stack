@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2021 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -17,9 +17,7 @@
 #define NSTACKX_LOG_H
 
 #include "nstackx_common_header.h"
-#ifdef ENABLE_HILOG
-#include <hilog/log.h>
-#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -51,30 +49,18 @@ typedef void (*LogImplInternal)(const char *tag, uint32_t level, const char *for
 /* Set log implementation */
 NSTACKX_EXPORT void SetLogImpl(LogImplInternal fn);
 
-typedef void (*NstakcxLogCallback)(const char *moduleName, uint32_t logLevel, const char *format, ...);
-NSTACKX_EXPORT_VARIABLE extern NstakcxLogCallback g_nstackxLogCallBack;
-
-NSTACKX_EXPORT int32_t SetLogCallback(NstakcxLogCallback logCb);
-NSTACKX_EXPORT void SetDefaultLogCallback(void);
-
-#define NSTACKX_LOG_COMMON(moduleName, logLevel, moduleDebugLevel, format, ...) \
+#define NSTACKX_LOG_COMMON(moduleName, logLevel, format, ...) \
     do { \
-        if (logLevel <= moduleDebugLevel && g_nstackxLogCallBack != NULL) { \
-            g_nstackxLogCallBack(moduleName, logLevel, "%s:[%d] :" format "\n", \
-                __FUNCTION__, __LINE__, ##__VA_ARGS__); \
+        if (logLevel <= GetLogLevel()) { \
+            PrintfImpl(moduleName, logLevel, "%s:[%d] :" format "\n", __FUNCTION__, __LINE__, ##__VA_ARGS__); \
         } \
     } while (0)
 
-#define LOGF(moduleName, format, ...) \
-    NSTACKX_LOG_COMMON(moduleName, NSTACKX_LOG_LEVEL_FATAL, GetLogLevel(), format, ##__VA_ARGS__)
-#define LOGE(moduleName, format, ...) \
-    NSTACKX_LOG_COMMON(moduleName, NSTACKX_LOG_LEVEL_ERROR, GetLogLevel(), format, ##__VA_ARGS__)
-#define LOGW(moduleName, format, ...) \
-    NSTACKX_LOG_COMMON(moduleName, NSTACKX_LOG_LEVEL_WARNING, GetLogLevel(), format, ##__VA_ARGS__)
-#define LOGI(moduleName, format, ...) \
-    NSTACKX_LOG_COMMON(moduleName, NSTACKX_LOG_LEVEL_INFO, GetLogLevel(), format, ##__VA_ARGS__)
-#define LOGD(moduleName, format, ...) \
-    NSTACKX_LOG_COMMON(moduleName, NSTACKX_LOG_LEVEL_DEBUG, GetLogLevel(), format, ##__VA_ARGS__)
+#define LOGF(moduleName, format, ...) NSTACKX_LOG_COMMON(moduleName, NSTACKX_LOG_LEVEL_FATAL, format, ##__VA_ARGS__)
+#define LOGE(moduleName, format, ...) NSTACKX_LOG_COMMON(moduleName, NSTACKX_LOG_LEVEL_ERROR, format, ##__VA_ARGS__)
+#define LOGW(moduleName, format, ...) NSTACKX_LOG_COMMON(moduleName, NSTACKX_LOG_LEVEL_WARNING, format, ##__VA_ARGS__)
+#define LOGI(moduleName, format, ...) NSTACKX_LOG_COMMON(moduleName, NSTACKX_LOG_LEVEL_INFO, format, ##__VA_ARGS__)
+#define LOGD(moduleName, format, ...) NSTACKX_LOG_COMMON(moduleName, NSTACKX_LOG_LEVEL_DEBUG, format, ##__VA_ARGS__)
 
 #ifdef __cplusplus
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2021 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -45,7 +45,6 @@
 })
 
 #define NSTACKX_EXPORT extern
-#define NSTACKX_EXPORT_VARIABLE
 
 typedef int32_t SocketDesc;
 

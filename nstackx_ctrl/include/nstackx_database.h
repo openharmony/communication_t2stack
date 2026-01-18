@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2021 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -13,29 +13,26 @@
  * limitations under the License.
  */
 
-#ifndef NSTACKX_GETOPT_H
-#define NSTACKX_GETOPT_H
-#include "sys_common_header.h"
+#ifndef NSTACKX_DATABASE_H
+#define NSTACKX_DATABASE_H
 
+#include <stdio.h>
+#include <stdint.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#define NSTACK_GETOPT_END_OF_STR (-1)
-#define NSTACK_GETOPT_UNKNOW_OPT '?'
+typedef uint8_t (*RecCompareCallback)(void *, void *);
 
-typedef struct {
-    int32_t argvIdx;
-    int32_t argvOffset;
-    const char *attachArg;
-} NstackGetOptMsg;
-
-NSTACKX_EXPORT int32_t NstackInitGetOptMsg(NstackGetOptMsg *optMsg);
-NSTACKX_EXPORT int32_t NstackGetOpt(NstackGetOptMsg *optMsg, int32_t argc, const char *const *argv, const char *opts);
-NSTACKX_EXPORT const char *NstackGetOptArgs(const NstackGetOptMsg *optMsg);
+void *DatabaseInit(uint32_t recnum, size_t recsz, RecCompareCallback cb);
+void DatabaseClean(void *ptr);
+uint32_t GetDatabaseUseCount(const void *dbptr);
+void *DatabaseAllocRecord(void *dbptr);
+void DatabaseFreeRecord(void *dbptr, const void *ptr);
+void *DatabaseSearchRecord(const void *dbptr, void *ptr);
+void *DatabaseGetNextRecord(void *dbptr, int64_t *state);
 
 #ifdef __cplusplus
 }
 #endif
-#endif /* NSTACKX_GETOPT_H */
-
+#endif /* #ifndef NSTACKX_DATABASE_H */

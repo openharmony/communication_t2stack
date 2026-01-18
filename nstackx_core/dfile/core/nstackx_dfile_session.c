@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2021 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -23,7 +23,7 @@
 #include "nstackx_epoll.h"
 #include "nstackx_error.h"
 #include "nstackx_event.h"
-#include "nstackx_dfile_log.h"
+#include "nstackx_log.h"
 #ifdef MBEDTLS_INCLUDED
 #include "nstackx_mbedtls.h"
 #else
@@ -34,7 +34,6 @@
 #include "nstackx_dfile_mp.h"
 #include "securec.h"
 #include "nstackx_util.h"
-#include "nstackx_dfile_dfx.h"
 
 #define TAG "nStackXDFile"
 
@@ -50,7 +49,6 @@
 
 static void ReadEventHandle(void *arg);
 static void ProcessSessionTrans(const DFileSession *session, uint16_t exceptTransId);
-DFileEventFunc g_dfileEventFunc;
 
 static QueueNode *CreateQueueNode(const uint8_t *frame, size_t length,
     const struct sockaddr_in *peerAddr, uint8_t socketIndex)
@@ -75,12 +73,14 @@ static QueueNode *CreateQueueNode(const uint8_t *frame, size_t length,
     queueNode->sendLen = 0;
 
     if (memcpy_s(queueNode->frame, length, frame, length) != EOK) {
-        DestroyQueueNode(queueNode);
+        free(queueNode->frame);
+        free(queueNode);
         return NULL;
     }
     if (peerAddr != NULL) {
         if (memcpy_s(&queueNode->peerAddr, sizeof(struct sockaddr_in), peerAddr, sizeof(struct sockaddr_in)) != EOK) {
-            DestroyQueueNode(queueNode);
+            free(queueNode->frame);
+            free(queueNode);
             return NULL;
         }
     }
@@ -100,12 +100,12 @@ void DestroyQueueNode(QueueNode *queueNode)
 void NotifyMsgRecver(const DFileSession *session, DFileMsgType msgType, const DFileMsg *msg)
 {
     if (session == NULL) {
-        DFILE_LOGI(TAG, "session is NULL");
+        LOGI(TAG, "session is NULL");
         return;
     }
 
     if (session->msgReceiver == NULL) {
-        DFILE_LOGI(TAG, "msgReceiver is NULL");
+        LOGI(TAG, "msgReceiver is NULL");
         return;
     }
 
@@ -127,7 +127,7 @@ void CalculateSessionTransferRatePrepare(DFileSession *session)
     if (!ListIsEmpty(&session->dFileTransChain)) {
         return;
     }
-    DFILE_LOGI(TAG, "begin to calculate transfer rate");
+    LOGI(TAG, "begin to calulate transfer rate");
     session->bytesTransferred = 0;
     session->transCount = 0;
     ClockGetTime(CLOCK_MONOTONIC, &session->startTs);
@@ -149,7 +149,7 @@ static int32_t SendSmallList(DFileSession *session)
             if (ret == NSTACKX_EOK) {
                 return NSTACKX_TRUE;
             }
-            DFILE_LOGE(TAG, "DFileStartTrans fail, error: %d", ret);
+            LOGE(TAG, "DFileStartTrans fail, error: %d", ret);
             (void)memset_s(&data, sizeof(data), 0, sizeof(data));
             data.errorCode = ret;
             data.fileList.files = (const char **)fileListInfo->files;
@@ -177,7 +177,7 @@ static void SendPendingList(DFileSession *session)
         if (ret == NSTACKX_EOK) {
             break;
         }
-        DFILE_LOGE(TAG, "DFileStartTrans fail, error: %d", ret);
+        LOGE(TAG, "DFileStartTrans fail, error: %d", ret);
         (void)memset_s(&data, sizeof(data), 0, sizeof(data));
         data.errorCode = ret;
         data.fileList.files = (const char **)fileListInfo->files;
@@ -191,14 +191,14 @@ static void SendPendingList(DFileSession *session)
 static void SendSmallAndPendingList(DFileSession *session)
 {
 #ifdef NSTACKX_SMALL_FILE_SUPPORT
-    DFILE_LOGI(TAG, "fileListPendingCnt %u fileListProcessingCnt %u smallListPendingCnt %u smallListProcessingCnt %u",
+    LOGI(TAG, "fileListPendingCnt %u fileListProcessingCnt %u smallListPendingCnt %u smallListProcessingCnt %u",
         session->fileListPendingCnt, session->fileListProcessingCnt, session->smallListPendingCnt,
         session->smallListProcessingCnt);
     if (SendSmallList(session) != NSTACKX_TRUE) {
         SendPendingList(session);
     }
 #else
-    DFILE_LOGI(TAG, "fileListPendingCnt %u fileListProcessingCnt %u",
+    LOGI(TAG, "fileListPendingCnt %u fileListProcessingCnt %u",
         session->fileListPendingCnt, session->fileListProcessingCnt);
     SendPendingList(session);
 #endif
@@ -208,10 +208,10 @@ void NoticeSessionProgress(DFileSession *session)
 {
     DFileMsg data;
     (void)memset_s(&data, sizeof(data), 0, sizeof(data));
-    if ((FileManagerGetTotalBytes(session->fileManager, &data.transferUpdate.totalBytes) == NSTACKX_EOK) &&
-        (FileManagerGetBytesTransferred(session->fileManager, &data.transferUpdate.bytesTransferred) == NSTACKX_EOK) &&
-        (data.transferUpdate.bytesTransferred <= data.transferUpdate.totalBytes) &&
-        (data.transferUpdate.bytesTransferred > 0)) {
+    if (FileManagerGetTotalBytes(session->fileManager, &data.transferUpdate.totalBytes) == NSTACKX_EOK &&
+        FileManagerGetBytesTransferred(session->fileManager, &data.transferUpdate.bytesTransferred) == NSTACKX_EOK
+        && data.transferUpdate.bytesTransferred <= data.transferUpdate.totalBytes
+        && data.transferUpdate.bytesTransferred > 0) {
         NotifyMsgRecver(session, DFILE_ON_SESSION_IN_PROGRESS, &data);
     }
 }
@@ -297,14 +297,12 @@ static void CalculateSessionTransferRate(DFileSession *session, uint64_t totalBy
         return;
     }
     const double rate = 1.0 * session->bytesTransferred / DFILE_MEGABYTES * MSEC_TICKS_PER_SEC / spendTime;
-    DFILE_LOGI(TAG, "Total %u trans, %llu bytes, used %u ms. rate %.2f MB/s",
+    LOGI(TAG, "Total %u trans, %llu bytes, used %u ms. rate %.2f MB/s",
          session->transCount, session->bytesTransferred, spendTime, rate);
     DFileMsg msgData;
     (void)memset_s(&msgData, sizeof(msgData), 0, sizeof(msgData));
     msgData.rate = (uint32_t)rate;
     NotifyMsgRecver(session, DFILE_ON_SESSION_TRANSFER_RATE, &msgData);
-
-    TransferCompleteEvent(rate);
 }
 
 static void CheckTransDone(DFileSession *session, struct DFileTrans *dFileTrans, DFileTransMsgType msgType)
@@ -313,11 +311,9 @@ static void CheckTransDone(DFileSession *session, struct DFileTrans *dFileTrans,
         msgType == DFILE_TRANS_MSG_FILE_SEND_FAIL || msgType == DFILE_TRANS_MSG_END) {
         uint8_t flag = dFileTrans->fileList->smallFlag;
         if (SetTransIdState(session, dFileTrans->transId, STATE_TRANS_DONE) != NSTACKX_EOK) {
-            DFILE_LOGE(TAG, "set trans id state fail");
+            LOGE(TAG, "set trans id state fail");
         }
-        if (((PeerInfo *)dFileTrans->context)->currentTransCount > 0) {
-            ((PeerInfo *)dFileTrans->context)->currentTransCount--;
-        }
+        ((PeerInfo *)dFileTrans->context)->currentTransCount--;
         ListRemoveNode(&dFileTrans->list);
         uint64_t totalBytes = DFileTransGetTotalBytes(dFileTrans);
         DFileTransDestroy(dFileTrans);
@@ -369,7 +365,7 @@ static void DTransMsgReceiver(struct DFileTrans *dFileTrans, DFileTransMsgType m
             ProcessSessionTrans(session, dFileTrans->transId);
             break;
         default:
-            DFILE_LOGI(TAG, "transId %u, recv DFileTrans event %d", dFileTrans->transId, msgType);
+            LOGI(TAG, "transId %u, recv DFileTrans event %d", dFileTrans->transId, msgType);
     }
 
     CheckTransDone(session, dFileTrans, msgType);
@@ -382,7 +378,7 @@ static void ServerSettingTimeoutHandle(void *data)
     TimerDelete(peerInfo->settingTimer);
     peerInfo->session->peerInfoCnt--;
     free(peerInfo);
-    DFILE_LOGI(TAG, "DFileServer Setting Negotationion timeout");
+    LOGI(TAG, "DFileServer Setting Negotationion timeout");
 }
 
 static void ClientSettingTimeoutHandle(void *data)
@@ -397,15 +393,15 @@ static void ClientSettingTimeoutHandle(void *data)
         peerInfo->settingTimer = NULL;
         peerInfo->settingTimeoutCnt = 0;
         msgData.errorCode = NSTACKX_EFAILED;
-        DFILE_LOGI(TAG, "DFileClient Setting Negotationion timeout");
+        LOGI(TAG, "DFileClient Setting Negotationion timeout");
         NotifyMsgRecver(peerInfo->session, DFILE_ON_CONNECT_FAIL, &msgData);
     } else {
         DFileSessionSendSetting(peerInfo);
-        DFILE_LOGI(TAG, "Client Setting Negotationion timeout %u times", peerInfo->settingTimeoutCnt);
+        LOGI(TAG, "Client Setting Negotationion timeout %u times", peerInfo->settingTimeoutCnt);
         if (TimerSetTimeout(peerInfo->settingTimer, timeout, NSTACKX_FALSE) != NSTACKX_EOK) {
             msgData.errorCode = NSTACKX_EFAILED;
             NotifyMsgRecver(peerInfo->session, DFILE_ON_CONNECT_FAIL, &msgData);
-            DFILE_LOGE(TAG, "Timer setting timer fail");
+            LOGE(TAG, "Timer setting timer fail");
         }
     }
 }
@@ -455,17 +451,15 @@ void DFileSessionSendSetting(PeerInfo *peerInfo)
     settingFramePara.capability = peerInfo->session->capability & NSTACKX_CAPS_LINK_SEQUENCE;
     settingFramePara.dataFrameSize = 0;
     settingFramePara.capsCheck = NSTACKX_INTERNAL_CAPS_RECV_FEEDBACK;
-    if (peerInfo->session->fileManager->keyLen) {
-        DFileGetCipherCaps(peerInfo->session, &settingFramePara);
-    }
     EncodeSettingFrame(buf, NSTACKX_DEFAULT_FRAME_SIZE, &frameLen, &settingFramePara);
+    int32_t ret = DFileWriteHandle(buf, frameLen, peerInfo);
+    if (ret != (int32_t)frameLen && ret != NSTACKX_EAGAIN) {
+        data.errorCode = NSTACKX_EFAILED;
+        NotifyMsgRecver(peerInfo->session, DFILE_ON_CONNECT_FAIL, &data);
+        return;
+    }
 
     if (peerInfo->settingTimer != NULL) {
-        int32_t ret = DFileWriteHandle(buf, frameLen, peerInfo);
-        if (ret != (int32_t)frameLen && ret != NSTACKX_EAGAIN) {
-            data.errorCode = NSTACKX_EFAILED;
-            NotifyMsgRecver(peerInfo->session, DFILE_ON_CONNECT_FAIL, &data);
-        }
         return;
     }
 
@@ -473,10 +467,9 @@ void DFileSessionSendSetting(PeerInfo *peerInfo)
         peerInfo->settingTimer = TimerStart(peerInfo->session->epollfd, timeout,
                                             NSTACKX_FALSE, ClientSettingTimeoutHandle, peerInfo);
         if (peerInfo->settingTimer == NULL) {
-            DFILE_LOGE(TAG, "setting timmer creat fail");
+            LOGE(TAG, "setting timmer creat fail");
             data.errorCode = NSTACKX_EFAILED;
             NotifyMsgRecver(peerInfo->session, DFILE_ON_CONNECT_FAIL, &data);
-            return;
         }
     } else {
         peerInfo->settingTimer = TimerStart(peerInfo->session->epollfd, MAX_SERVER_NEGOTIATE_VALID_TIMEOUT,
@@ -484,12 +477,6 @@ void DFileSessionSendSetting(PeerInfo *peerInfo)
         if (peerInfo->settingTimer == NULL) {
             return;
         }
-    }
-
-    int32_t ret = DFileWriteHandle(buf, frameLen, peerInfo);
-    if (ret != (int32_t)frameLen && ret != NSTACKX_EAGAIN) {
-        data.errorCode = NSTACKX_EFAILED;
-        NotifyMsgRecver(peerInfo->session, DFILE_ON_CONNECT_FAIL, &data);
     }
 }
 
@@ -518,14 +505,14 @@ static void SetDFileSessionConfig(DFileSession *session, DFileConfig *dFileConfi
     }
 
     if (FileManagerSetMaxFrameLength(session->fileManager, peerInfo->dataFrameSize) != NSTACKX_EOK) {
-        DFILE_LOGE(TAG, "failed to set max frame length");
+        LOGE(TAG, "failed to set max frame length");
     }
 
-    DFILE_LOGI(TAG, "connType is %u set sendrate is %u maxSendRate is %u peerInfo->dataFrameSize is %u",
+    LOGI(TAG, "connType is %u set sendrate is %u maxSendRate is %u peerInfo->dataFrameSize is %u",
          connType, peerInfo->sendRate, peerInfo->maxSendRate, peerInfo->dataFrameSize);
     if (session->sessionType == DFILE_SESSION_TYPE_SERVER) {
         if (FileManagerSetRecvParaWithConnType(session->fileManager, connType) != NSTACKX_EOK) {
-            DFILE_LOGE(TAG, "failed to set recv para");
+            LOGE(TAG, "failed to set recv para");
         }
     }
 }
@@ -545,14 +532,14 @@ static void DFileSessionHandleClientSetting(DFileSession *session, DFileFrame *d
     List *pos = NULL;
     SettingFrame hostSettingFrame;
     (void)memset_s(&hostSettingFrame, sizeof(hostSettingFrame), 0, sizeof(hostSettingFrame));
-    DFILE_LOGI(TAG, "handle Setting Frame, DFileSessionType %u", session->sessionType);
+    LOGI(TAG, "handle Setting Frame, DFileSessionType %u", session->sessionType);
     /* unsupport version */
     if (DecodeSettingFrame((SettingFrame *)dFileFrame, &hostSettingFrame) != NSTACKX_EOK || hostSettingFrame.mtu == 0) {
         return;
     }
     PeerInfo *peerInfo = SearchPeerInfoNode(session, peerAddr);
     if (peerInfo == NULL) {
-        DFILE_LOGE(TAG, "recv unknown peer setting, maybe be attacked");
+        LOGE(TAG, "recv unknow peer setting, maybe be attacked");
         return;
     }
     peerInfo->remoteDFileVersion = hostSettingFrame.dFileVersion;
@@ -562,7 +549,7 @@ static void DFileSessionHandleClientSetting(DFileSession *session, DFileFrame *d
     LIST_FOR_EACH(pos, &session->dFileTransChain) {
         DFileTrans *trans = (DFileTrans *)pos;
         if (DFileTransSetMtu(trans, peerInfo->mtuInuse) != NSTACKX_EOK) {
-            DFILE_LOGE(TAG, "set trans mtu failed");
+            LOGE(TAG, "set trans mtu failed");
         }
     }
     DFileMsg data;
@@ -576,12 +563,11 @@ static void DFileSessionHandleClientSetting(DFileSession *session, DFileFrame *d
         SetDFileSessionConfig(session, &dFileConfig, hostSettingFrame.connType, peerInfo);
     }
     if (hostSettingFrame.capability & NSTACKX_CAPS_LINK_SEQUENCE) {
-        DFILE_LOGI(TAG, "server replies not support Link Sequence");
+        LOGI(TAG, "server replies not support Link Sequence");
     } else {
-        DFILE_LOGI(TAG, "server replies using normal ACK");
+        LOGI(TAG, "server replies using normal ACK");
         session->capability &= ~NSTACKX_CAPS_LINK_SEQUENCE;
     }
-    DFileChooseCipherType(&hostSettingFrame, session);
 }
 
 static uint16_t DFileGetMTU(SocketProtocol protocol)
@@ -591,7 +577,7 @@ static uint16_t DFileGetMTU(SocketProtocol protocol)
     if (protocol == NSTACKX_PROTOCOL_UDP) {
         mtu = NSTACKX_DEFAULT_FRAME_SIZE;
     } else if (protocol == NSTACKX_PROTOCOL_D2D) {
-        DFILE_LOGE(TAG, "d2d not support");
+        LOGE(TAG, "d2d not support");
     } else if (protocol == NSTACKX_PROTOCOL_TCP) {
         mtu = NSTACKX_DEFAULT_FRAME_SIZE;
     }
@@ -621,7 +607,7 @@ PeerInfo *CreatePeerInfo(DFileSession *session, const struct sockaddr_in *dstAdd
 
     if (GetInterfaceNameByIP(session->socket[socketIndex]->srcAddr.sin_addr.s_addr,
         peerInfo->localInterfaceName, sizeof(peerInfo->localInterfaceName)) != NSTACKX_EOK) {
-        DFILE_LOGE(TAG, "GetInterfaceNameByIP failed %d", errno);
+        LOGE(TAG, "GetInterfaceNameByIP failed %d", errno);
     }
 
     if (peerMtu == 0) {
@@ -635,17 +621,17 @@ PeerInfo *CreatePeerInfo(DFileSession *session, const struct sockaddr_in *dstAdd
 static void HandleLinkSeqCap(DFileSession *session, SettingFrame *hostSettingFrame)
 {
     if (hostSettingFrame->capability & NSTACKX_CAPS_LINK_SEQUENCE) {
-        DFILE_LOGI(TAG, "client wants to enable Link Sequence");
+        LOGI(TAG, "client wants to enable Link Sequence");
     } else {
-        DFILE_LOGI(TAG, "client wants to use normal ACK");
+        LOGI(TAG, "client wants to use normal ACK");
         session->capability &= ~NSTACKX_CAPS_LINK_SEQUENCE;
     }
 
     if (hostSettingFrame->capability & NSTACKX_INTERNAL_CAPS_RECV_FEEDBACK) {
-        DFILE_LOGI(TAG, "client support recv feedback");
+        LOGI(TAG, "client support recv feedback");
         session->capsCheck |= NSTACKX_INTERNAL_CAPS_RECV_FEEDBACK;
     } else {
-        DFILE_LOGI(TAG, "client do not support recv feedback");
+        LOGI(TAG, "client do not support recv feedback");
         session->capsCheck &= ~NSTACKX_INTERNAL_CAPS_RECV_FEEDBACK;
     }
 }
@@ -679,7 +665,7 @@ static void DFileSessionHandleServerSetting(DFileSession *session, DFileFrame *d
     DFileConfig dFileConfig;
     (void)memset_s(&hostSettingFrame, sizeof(hostSettingFrame), 0, sizeof(hostSettingFrame));
     (void)memset_s(&dFileConfig, sizeof(dFileConfig), 0, sizeof(dFileConfig));
-    DFILE_LOGI(TAG, "handle Setting Frame, DFileSessionType %u", session->sessionType);
+    LOGI(TAG, "handle Setting Frame, DFileSessionType %u", session->sessionType);
     if (DecodeSettingFrame((SettingFrame *)dFileFrame, &hostSettingFrame) != NSTACKX_EOK || hostSettingFrame.mtu == 0) {
         return;
     }
@@ -687,7 +673,7 @@ static void DFileSessionHandleServerSetting(DFileSession *session, DFileFrame *d
     PeerInfo *peerInfo = SearchPeerInfoNode(session, peerAddr);
     if (peerInfo != NULL) {
         if (peerInfo->settingTimeoutCnt >= MAX_NEGOTIATE_TIMEOUT_COUNT) {
-            DFILE_LOGE(TAG, "receive more than %d Setting for one peer, drop", MAX_NEGOTIATE_TIMEOUT_COUNT);
+            LOGE(TAG, "receive more than %d Setting for one peer, drop", MAX_NEGOTIATE_TIMEOUT_COUNT);
             return;
         } else {
             DFileSessionSetPeerInfo(peerInfo, SETTING_NEGOTIATING, &hostSettingFrame);
@@ -703,13 +689,12 @@ static void DFileSessionHandleServerSetting(DFileSession *session, DFileFrame *d
 
 L_END:
     peerInfo->settingTimeoutCnt++;
-    DFILE_LOGI(TAG, "DFileServer response Setting Frame. count %u", peerInfo->settingTimeoutCnt);
+    LOGI(TAG, "DFileServer response Setting Frame. count %u", peerInfo->settingTimeoutCnt);
     peerInfo->remoteDFileVersion = hostSettingFrame.dFileVersion;
     if (GetDFileConfig(&dFileConfig, peerInfo->mtuInuse, hostSettingFrame.connType) == NSTACKX_EOK) {
         SetDFileSessionConfig(session, &dFileConfig, hostSettingFrame.connType, peerInfo);
     }
     HandleLinkSeqCap(session, &hostSettingFrame);
-    DFileChooseCipherType(&hostSettingFrame, session);
 }
 
 static void DFileSessionHandleSetting(DFileSession *session, DFileFrame *dFileFrame,
@@ -731,7 +716,7 @@ static void HandleWithoutSettingError(DFileSession *session, const struct sockad
 
     PeerInfo *peerInfo = SearchPeerInfoNode(session, peerAddr);
     if (peerInfo == NULL) {
-        DFILE_LOGE(TAG, "recv unknown peer rst, maybe be attacked");
+        LOGE(TAG, "recv unknow peer rst, maybe be attacked");
         return;
     }
 
@@ -742,7 +727,7 @@ static void HandleWithoutSettingError(DFileSession *session, const struct sockad
              * and will reset after new setting negotion.
              */
         if (DFileTransSetMtu(trans, 0) != NSTACKX_EOK) {
-            DFILE_LOGE(TAG, "DFileTransSetMtu(trans, 0) failed %d", errno);
+            LOGE(TAG, "DFileTransSetMtu(trans, 0) failed %d", errno);
         }
     }
 
@@ -753,7 +738,7 @@ static void HandleWithoutSettingError(DFileSession *session, const struct sockad
             TimerDelete(peerInfo->settingTimer);
             peerInfo->settingTimer = NULL;
             peerInfo->state = SETTING_NEGOTIATING;
-            DFILE_LOGD(TAG, "Send Setting Frame");
+            LOGD(TAG, "Send Setting Frame");
             DFileSessionSendSetting(peerInfo);
             break;
         }
@@ -768,14 +753,14 @@ static void DFileSessionHandleRst(DFileSession *session, DFileFrame *dFileFrame,
     }
 
     uint16_t transId = ntohs(dFileFrame->header.transId);
-    DFILE_LOGD(TAG, "handle RST (%hu) frame, transId %hu", errCode, transId);
+    LOGD(TAG, "handle RST (%u) frame, transId %u", errCode, transId);
 
     switch (errCode) {
         case NSTACKX_DFILE_WITHOUT_SETTING_ERROR:
             HandleWithoutSettingError(session, peerAddr);
             break;
         default:
-            DFILE_LOGE(TAG, "Unspported error code %hu", errCode);
+            LOGE(TAG, "Unspported error code %u", errCode);
             break;
     }
 }
@@ -785,7 +770,7 @@ static void DFileSessionResolveBackPress(DFileSession *session, DataBackPressure
     uint32_t index;
 
     if (PthreadMutexLock(&session->backPressLock) != 0) {
-        DFILE_LOGE(TAG, "pthread backPressLock mutex lock failed");
+        LOGE(TAG, "pthread backPressLock mutex lock failed");
         return;
     }
 
@@ -800,7 +785,7 @@ static void DFileSessionResolveBackPress(DFileSession *session, DataBackPressure
     }
 
     if (PthreadMutexUnlock(&session->backPressLock) != 0) {
-        DFILE_LOGE(TAG, "pthread backPressLock mutex unlock failed");
+        LOGE(TAG, "pthread backPressLock mutex unlock failed");
         return;
     }
 
@@ -813,7 +798,7 @@ static void DFileSessionHandleBackPressure(DFileSession *session, const DFileFra
     DataBackPressure backPress;
     PeerInfo *peerInfo = SearchPeerInfoNode(session, peerAddr);
     if (peerInfo == NULL) {
-        DFILE_LOGE(TAG, "can't get valid peerinfo");
+        LOGE(TAG, "can't get valid peerinfo");
         return;
     }
 
@@ -823,7 +808,7 @@ static void DFileSessionHandleBackPressure(DFileSession *session, const DFileFra
 
     DFileSessionResolveBackPress(session, backPress, session->clientSendThreadNum);
 
-    DFILE_LOGI(TAG, "handle back pressure recvListOverIo %u recvBufThreshold %u stopSendPeriod %u",
+    LOGI(TAG, "handle back pressure recvListOverIo %u recvBufThreshold %u stopSendPeriod %u",
          backPress.recvListOverIo, backPress.recvBufThreshold,
          backPress.stopSendPeriod);
 
@@ -856,7 +841,7 @@ static int32_t DFileSessionHandleFrame(DFileSession *session, DFileFrame *dFileF
 {
     PeerInfo *peerInfo = SearchPeerInfoNode(session, peerAddr);
     if (peerInfo == NULL) {
-        DFILE_LOGI(TAG, "can't find peerInfo");
+        LOGI(TAG, "can't find peerInfo");
         return NSTACKX_EFAILED;
     }
 
@@ -868,7 +853,7 @@ static int32_t DFileSessionHandleFrame(DFileSession *session, DFileFrame *dFileF
 
     uint16_t transId = ntohs(dFileFrame->header.transId);
     if (transId == 0) {
-        DFILE_LOGE(TAG, "transId is 0");
+        LOGE(TAG, "transId is 0");
         return NSTACKX_EFAILED;
     }
 
@@ -876,7 +861,7 @@ static int32_t DFileSessionHandleFrame(DFileSession *session, DFileFrame *dFileF
     if (trans == NULL) {
         if (dFileFrame->header.type != NSTACKX_DFILE_FILE_HEADER_FRAME) {
             /* Only HEADER frame can start dfile transfer (receiver) */
-            DFILE_LOGE(TAG, "trans %u is NULL && type is %u", transId, dFileFrame->header.type);
+            LOGE(TAG, "trans %u is NULL && type is %u", transId, dFileFrame->header.type);
             return NSTACKX_EFAILED;
         }
         if (IsTransIdDone(session, transId) == NSTACKX_EOK) {
@@ -888,11 +873,11 @@ static int32_t DFileSessionHandleFrame(DFileSession *session, DFileFrame *dFileF
             (void)memset_s(&data, sizeof(data), 0, sizeof(data));
             data.errorCode = NSTACKX_ENOMEM;
             NotifyMsgRecver(session, DFILE_ON_FATAL_ERROR, &data);
-            DFILE_LOGE(TAG, "trans is NULL");
+            LOGE(TAG, "trans is NULL");
             return NSTACKX_EFAILED;
         }
         if (DFileTransSetMtu(trans, peerInfo->mtuInuse) != NSTACKX_EOK) {
-            DFILE_LOGE(TAG, "set trans mtu failed");
+            LOGE(TAG, "set trans mtu failed");
         }
         CalculateSessionTransferRatePrepare(session);
         ListInsertTail(&(session->dFileTransChain), &(trans->list));
@@ -916,15 +901,16 @@ int32_t DFileWriteHandle(const uint8_t *frame, size_t len, void *context)
     }
 
     if (PthreadMutexLock(&session->outboundQueueLock) != 0) {
-        DFILE_LOGE(TAG, "pthread mutex lock failed");
-        DestroyQueueNode(queueNode);
+        LOGE(TAG, "pthread mutex lock failed");
+        free(queueNode->frame);
+        free(queueNode);
         return NSTACKX_EFAILED;
     }
     ListInsertTail(&session->outboundQueue, &queueNode->list);
     session->outboundQueueSize++;
     if (PthreadMutexUnlock(&session->outboundQueueLock) != 0) {
         /* Don't need to free node, as it's mount to outboundQueue */
-        DFILE_LOGE(TAG, "pthread mutex unlock failed");
+        LOGE(TAG, "pthread mutex unlock failed");
         return NSTACKX_EFAILED;
     }
     SemPost(&session->outboundQueueWait[peerInfo->socketIndex]);
@@ -1001,7 +987,7 @@ void *DFileMainLoop(void *arg)
     DFileMsg msgData;
     (void)memset_s(&msgData, sizeof(msgData), 0, sizeof(msgData));
     uint8_t isBind = NSTACKX_FALSE;
-    DFILE_LOGI(TAG, "main thread start");
+    LOGI(TAG, "main thread start");
     SetThreadName(DFFILE_MAIN_THREAD_NAME);
     SetMaximumPriorityForThread();
     SetTidToBindInfo(session, POS_MAIN_THERD_START);
@@ -1010,7 +996,7 @@ void *DFileMainLoop(void *arg)
         int64_t minTimeout = GetEpollWaitTimeOut(session);
         ret = EpollLoop(session->epollfd, (int32_t)minTimeout);
         if (ret == NSTACKX_EFAILED) {
-            DFILE_LOGE(TAG, "epoll wait failed");
+            LOGE(TAG, "epoll wait failed");
             break;
         }
         if (isBind == NSTACKX_FALSE && session->transFlag == NSTACKX_TRUE) {
@@ -1041,7 +1027,7 @@ void *DFileMainLoop(void *arg)
 static void AmendPeerInfoSendRate(PeerInfo *peerInfo)
 {
     peerInfo->amendSendRate = peerInfo->sendRate;
-    DFILE_LOGI(TAG, "current: sendrate %u, realsendframerate %u---new amendSendRate %d",
+    LOGI(TAG, "current: sendrate %u, realsendframerate %u---new amendSendRate %d",
          peerInfo->sendRate, peerInfo->sendFrameRate, peerInfo->amendSendRate);
 }
 
@@ -1063,7 +1049,7 @@ static void DFileSendCalculateRate(DFileSession *session, PeerInfo *peerInfo)
         if (peerInfo->socketIndex == 0) {
             session->fileManager->iorRate = (uint32_t)(session->fileManager->iorBytes *
                 NSTACKX_MICRO_TICKS / measureElapse / DFILE_MEGABYTES);
-            DFILE_LOGI(TAG, "IO read rate: %u MB/s send list full times %u", session->fileManager->iorRate,
+            LOGI(TAG, "IO read rate: %u MB/s send list full times %u", session->fileManager->iorRate,
                 session->fileManager->sendListFullTimes);
             session->fileManager->sendListFullTimes = 0;
             session->fileManager->iorBytes = 0;
@@ -1076,7 +1062,7 @@ static void DFileSendCalculateRate(DFileSession *session, PeerInfo *peerInfo)
             peerInfo->qdiscAveLeft = peerInfo->qdiscAveLeft / peerInfo->qdiscSearchNum;
         }
 
-        DFILE_LOGI(TAG, "framesize %u maxsendrate %u sendRate %u, amendSendRate %d sendCount %llu,"
+        LOGI(TAG, "framesize %u maxsendrate %u sendRate %u, amendSendRate %d sendCount %llu,"
                   "measureElapse %llu sendFrameRate %u %uMB/s,"
                   "total send block num %llu eAgainCount %u send list empty times %u sleep times %u, noPendingData %u,"
                   "min qdisc %u max qdisc %u search num %u ave qdisc %u"
@@ -1139,7 +1125,7 @@ static void DFileRecvCalculateRate(DFileSession *session, DFileFrame *dFileFrame
         if (session->fileManager->iowRate > session->fileManager->iowMaxRate) {
             session->fileManager->iowMaxRate = session->fileManager->iowRate;
         }
-        DFILE_LOGI(TAG, "measureElapse %llu iowBytes %llu iowCount %llu IO write rate : %u KB/s", measureElapse,
+        LOGI(TAG, "measureElapse %llu iowBytes %llu iowCount %llu IO write rate : %u KB/s", measureElapse,
              session->fileManager->iowBytes, session->fileManager->iowCount, session->fileManager->iowRate);
         session->fileManager->iowBytes = 0;
         ClockGetTime(CLOCK_MONOTONIC, &session->measureBefore);
@@ -1164,7 +1150,7 @@ static uint64_t CheckElapseTime(const struct timespec *before, uint64_t overRun)
     elapseUs += overRun;
     if (elapseUs < DATA_FRAME_SEND_INTERVAL_US) {
         if (usleep((useconds_t)((uint64_t)DATA_FRAME_SEND_INTERVAL_US - elapseUs)) != NSTACKX_EOK) {
-            DFILE_LOGE(TAG, "usleep(DATA_FRAME_SEND_INTERVAL_US - elapseUs) failed %d", errno);
+            LOGE(TAG, "usleep(DATA_FRAME_SEND_INTERVAL_US - elapseUs) failed %d", errno);
         }
         return 0;
     } else {
@@ -1213,7 +1199,7 @@ static void TerminateMainThreadFatalInner(void *arg)
 static void PostFatalEvent(DFileSession *session)
 {
     if (PostEvent(&session->eventNodeChain, session->epollfd, TerminateMainThreadFatalInner, session) != NSTACKX_EOK) {
-        DFILE_LOGE(TAG, "PostEvent TerminateMainThreadFatalInner failed");
+        LOGE(TAG, "PostEvent TerminateMainThreadFatalInner failed");
         DFileSessionSetFatalFlag(session);
     }
 }
@@ -1230,7 +1216,7 @@ static void SetSendThreadName(uint32_t threadIdx)
 {
     char name[MAX_THREAD_NAME_LEN] = {0};
     if (sprintf_s(name, sizeof(name), "%s%u", DFFILE_SEND_THREAD_NAME_PREFIX, threadIdx) < 0) {
-        DFILE_LOGE(TAG, "sprintf send thead name failed");
+        LOGE(TAG, "sprintf send thead name failed");
     }
     SetThreadName(name);
 }
@@ -1247,7 +1233,7 @@ static void *DFileAddiSenderHandle(void *arg)
     uint32_t threadIdx = sendThreadCtx->threadIdx;
     free(sendThreadCtx);
     int32_t ret = NSTACKX_EOK;
-    DFILE_LOGI(TAG, "send thread %u start", threadIdx);
+    LOGI(TAG, "send thread %u start", threadIdx);
     SetSendThreadName(threadIdx);
     SetTidToBindInfo(session, threadIdx + POS_SEND_THERD_START);
     List unsent;
@@ -1343,7 +1329,7 @@ static int32_t CreateAddiSendThread(struct DFileSession *session)
         sendThreadCtx->session = session;
         sendThreadCtx->threadIdx = i;
         if (PthreadCreate(&(session->sendThreadPara[i].senderTid), NULL, DFileAddiSenderHandle, sendThreadCtx)) {
-            DFILE_LOGE(TAG, "Create sender thread failed");
+            LOGE(TAG, "Create sender thread failed");
             SemDestroy(&session->sendThreadPara[i].sendWait);
             SemDestroy(&session->sendThreadPara[i].semNewCycle);
             free(sendThreadCtx);
@@ -1425,7 +1411,7 @@ static int32_t DFileSessionSendFrame(DFileSession *session, QueueNode **preQueue
         ret = SendDataFrame(session, unsent, (uint32_t)(session->clientSendThreadNum - 1), socketIndex);
         session->sendRemain = 0;
         if ((ret == NSTACKX_EFAILED || ret == NSTACKX_EAGAIN) || session->closeFlag) {
-            DFILE_LOGI(TAG, "ret is %d", ret);
+            LOGI(TAG, "ret is %d", ret);
             return ret;
         }
     }
@@ -1436,7 +1422,7 @@ static int32_t DFileSessionSendFrame(DFileSession *session, QueueNode **preQueue
     }
     PeerInfo *peerInfo = ClientGetPeerInfoBySocketIndex(socketIndex, session);
     if (peerInfo == NULL) {
-        DFILE_LOGE(TAG, "can't get valid peerinfo");
+        LOGE(TAG, "can't get valid peerinfo");
         return NSTACKX_EFAILED;
     }
     if (peerInfo->mtuInuse == 0) {
@@ -1453,7 +1439,7 @@ static int32_t DFileSessionSendFrame(DFileSession *session, QueueNode **preQueue
     DFileSendCalculateRate(session, peerInfo);
 
     if ((ret == NSTACKX_EFAILED || ret == NSTACKX_EAGAIN) || session->closeFlag) {
-        DFILE_LOGI(TAG, "ret is %d and peerInfo->intervalSendCount is %u", ret, peerInfo->intervalSendCount);
+        LOGI(TAG, "ret is %d and peerInfo->intervalSendCount is %u", ret, peerInfo->intervalSendCount);
         return ret;
     }
 
@@ -1489,7 +1475,7 @@ static void DFileSenderPre(DFileSession *session, uint8_t socketIndex)
 
 void DFileSenderClose(DFileSession *session, QueueNode *queueNode, List *unsent, void *arg)
 {
-    DFILE_LOGI(TAG, "DFileSendCalculateRate: total send block num %llu.", session->totalSendBlocks);
+    LOGI(TAG, "DFileSendCalculateRate: total send block num %llu.", session->totalSendBlocks);
     CloseAddiSendThread(session);
     DestroyIovList(unsent, session, session->clientSendThreadNum - 1U);
     DestroyQueueNode(queueNode);
@@ -1540,7 +1526,6 @@ void *DFileSenderHandle(void *arg)
         }
         ret = DFileSessionSendFrame(session, &queueNode, &unsent, &before, socketIndex);
         if (ret < 0 && ret != NSTACKX_EAGAIN) {
-            PeerShuttedEvent();
             PostFatalEvent(session);
             break;
         }
@@ -1595,7 +1580,7 @@ static void ProcessDFileFrameList(DFileSession *session, List *head)
         uint8_t type = dFileFrame->header.type;
 
         if (ntohs(dFileFrame->header.length) > NSTACKX_MAX_FRAME_SIZE - sizeof(DFileFrameHeader)) {
-            DFILE_LOGE(TAG, "header length %u is too big", ntohs(dFileFrame->header.length));
+            LOGE(TAG, "header length %u is too big", ntohs(dFileFrame->header.length));
             DestroyQueueNode(queueNode);
             continue;
         }
@@ -1645,14 +1630,14 @@ static void ReadEventHandle(void *arg)
             }
         }
         if (PthreadMutexLock(&session->inboundQueueLock) != 0) {
-            DFILE_LOGE(TAG, "PthreadMutexLock error");
+            LOGE(TAG, "PthreadMutexLock error");
             return;
         }
         ListMove(&session->inboundQueue, &newHead);
         session->recvBlockNumInner += session->inboundQueueSize;
         session->inboundQueueSize = 0;
         if (PthreadMutexUnlock(&session->inboundQueueLock) != 0) {
-            DFILE_LOGE(TAG, "PthreadMutexUnlock error");
+            LOGE(TAG, "PthreadMutexUnlock error");
             break;
         }
         ProcessDFileFrameList(session, &newHead);
@@ -1665,7 +1650,7 @@ static int32_t DFileAddInboundQueue(DFileSession *session, const uint8_t *frame,
 {
     if (session->inboundQueueSize > MAX_RECVBUF_COUNT) {
         if (session->inboundQueueSize % MAX_NOMEM_PRINT == 0) {
-            DFILE_LOGI(TAG, "no mem inboundQueueSize:%llu", session->inboundQueueSize);
+            LOGI(TAG, "no mem inboundQueueSize:%llu", session->inboundQueueSize);
         }
         return NSTACKX_ENOMEM;
     }
@@ -1683,7 +1668,7 @@ static int32_t DFileAddInboundQueue(DFileSession *session, const uint8_t *frame,
     session->recvBlockNumDirect++;
 
     if (PthreadMutexUnlock(&session->inboundQueueLock) != 0) {
-        /* queue node is pushed to list, don't need destroy here. */
+        /* queue node is pushed to list, don't need to destory here. */
         return NSTACKX_EFAILED;
     }
 
@@ -1725,7 +1710,7 @@ static void PostReadEventToMainLoop(DFileSession *session)
     }
     NSTACKX_ATOM_FETCH_INC(&session->unprocessedReadEventCount);
     if (PostEvent(&session->eventNodeChain, session->epollfd, ReadEventHandle, session) != NSTACKX_EOK) {
-        DFILE_LOGE(TAG, "post read event failed");
+        LOGE(TAG, "post read event failed");
         NSTACKX_ATOM_FETCH_DEC(&session->unprocessedReadEventCount);
         session->mainLoopActiveReadFlag = NSTACKX_TRUE;
     } else {
@@ -1739,7 +1724,7 @@ int32_t DFileSessionHandleReadBuffer(DFileSession *session, const uint8_t *buf, 
     DFileFrame *dFileFrame = NULL;
     if (DecodeDFileFrame(buf, bufLen, &dFileFrame) != NSTACKX_EOK) {
         /* discard packet with non-zero trans id during cancel stage */
-        DFILE_LOGE(TAG, "drop malformed frame");
+        LOGE(TAG, "drop malformed frame");
         return NSTACKX_EOK;
     }
 
@@ -1748,7 +1733,7 @@ int32_t DFileSessionHandleReadBuffer(DFileSession *session, const uint8_t *buf, 
         return NSTACKX_EOK;
     }
     if (ret != NSTACKX_EOK) {
-        DFILE_LOGE(TAG, "frame add in bound queue failed :%d", ret);
+        LOGE(TAG, "frame add in bound queue failed :%d", ret);
         return NSTACKX_EFAILED;
     }
     PostReadEventToMainLoop(session);
@@ -1782,15 +1767,13 @@ int32_t DFileAcceptSocket(DFileSession *session)
 {
     session->acceptSocket = AcceptSocket(session->socket[0]);
     if (session->acceptSocket == NULL) {
-        DFILE_LOGI(TAG, "accept socket failed");
+        LOGI(TAG, "accept socket failed");
         return NSTACKX_EFAILED;
     } else {
-        DFILE_LOGI(TAG, "accept socket success");
+        LOGI(TAG, "accept socket success");
         session->acceptFlag = 1;
         SetTcpKeepAlive(session->acceptSocket->sockfd);
     }
-
-    AcceptSocketEvent();
 
     return NSTACKX_EOK;
 }
@@ -1802,7 +1785,7 @@ void *DFileReceiverHandle(void *arg)
     int32_t ret = NSTACKX_EAGAIN;
     uint8_t isBind = NSTACKX_FALSE;
 
-    DFILE_LOGI(TAG, "recv thread start");
+    LOGI(TAG, "recv thread start");
     DFileRecverPre(session);
     while (!session->closeFlag) {
         if (ret == NSTACKX_EAGAIN || !canRead) {
@@ -1821,17 +1804,15 @@ void *DFileReceiverHandle(void *arg)
 
         ret = DFileSocketRecv(session);
         if (ret != NSTACKX_EAGAIN && ret != NSTACKX_EOK) {
-            PeerShuttedEvent();
             break;
         }
     }
-    DFILE_LOGI(TAG, "Total recv blocks: direct %llu inner %llu", session->recvBlockNumDirect,
-            session->recvBlockNumInner);
+    LOGI(TAG, "Total recv blocks: direct %llu inner %llu", session->recvBlockNumDirect, session->recvBlockNumInner);
     if (ret < 0 && ret != NSTACKX_EAGAIN && ret != NSTACKX_PEER_CLOSE) {
         PostFatalEvent(session);
     }
 
-    DFILE_LOGI(TAG, "session %u Exit receiver thread ret %d", session->sessionId, ret);
+    LOGI(TAG, "session %u Exit receiver thread ret %d", session->sessionId, ret);
     return NULL;
 }
 
@@ -1862,7 +1843,7 @@ static int32_t RealPathFileName(FileListInfo *fileListInfo)
         free(tmpFileName);
     }
     if (ret != NSTACKX_EOK) {
-        DFILE_LOGE(TAG, "realpath failed");
+        LOGE(TAG, "realpath failed");
     }
     return ret;
 }
@@ -1876,6 +1857,7 @@ static void FreeTransFileListInfo(FileListInfo *fileListInfo)
         fileListInfo->remotePath = NULL;
     }
     free(fileListInfo);
+    fileListInfo = NULL;
 }
 
 static int32_t DFileStartTransInner(DFileSession *session, FileListInfo *fileListInfo)
@@ -1888,12 +1870,12 @@ static int32_t DFileStartTransInner(DFileSession *session, FileListInfo *fileLis
     PeerInfo *peerInfo = TransSelectPeerInfo(session);
     DFileTrans *trans = CreateTrans(transId, session, peerInfo, NSTACKX_TRUE);
     if (trans == NULL) {
-        DFILE_LOGE(TAG, "CreateTrans error");
+        LOGE(TAG, "CreateTrans error");
         return NSTACKX_ENOMEM;
     }
 
     if (DFileTransSetMtu(trans, peerInfo->mtuInuse) != NSTACKX_EOK) {
-        DFILE_LOGE(TAG, "set trans mtu failed");
+        LOGE(TAG, "set trans mtu failed");
     }
     if (RealPathFileName(fileListInfo) != NSTACKX_EOK) {
         DFileTransDestroy(trans);
@@ -1902,13 +1884,13 @@ static int32_t DFileStartTransInner(DFileSession *session, FileListInfo *fileLis
     int32_t ret = DFileTransSendFiles(trans, fileListInfo);
     if (ret != NSTACKX_EOK) {
         DFileTransDestroy(trans);
-        DFILE_LOGE(TAG, "DFileTransSendFiles fail, error: %d", ret);
+        LOGE(TAG, "DFileTransSendFiles fail, error: %d", ret);
         return ret;
     }
     ret = DFileTransAddExtraInfo(trans, fileListInfo->pathType, fileListInfo->noticeFileNameType,
                                  fileListInfo->userData);
     if (ret != NSTACKX_EOK) {
-        DFILE_LOGE(TAG, "DFileTransAddExtraInfo fail");
+        LOGE(TAG, "DFileTransAddExtraInfo fail");
         DFileTransDestroy(trans);
         return NSTACKX_EFAILED;
     }
@@ -1933,12 +1915,12 @@ static int32_t DFileStartTransInner(DFileSession *session, FileListInfo *fileLis
 int32_t DFileStartTrans(DFileSession *session, FileListInfo *fileListInfo)
 {
     if (PthreadMutexLock(&session->transIdLock) != 0) {
-        DFILE_LOGE(TAG, "pthread mutex lock error");
+        LOGE(TAG, "pthread mutex lock error");
         return NSTACKX_EFAILED;
     }
     int32_t ret = DFileStartTransInner(session, fileListInfo);
     if (PthreadMutexUnlock(&session->transIdLock) != 0) {
-        DFILE_LOGE(TAG, "pthread mutex unlock error");
+        LOGE(TAG, "pthread mutex unlock error");
     }
     return ret;
 }
@@ -1952,7 +1934,7 @@ void TerminateMainThreadInner(void *arg)
 int32_t StartDFileThreadsInner(DFileSession *session)
 {
     if (PthreadCreate(&(session->tid), NULL, DFileMainLoop, session)) {
-        DFILE_LOGE(TAG, "Create mainloop thread failed");
+        LOGE(TAG, "Create mainloop thread failed");
         goto L_ERR_MAIN_LOOP_THREAD;
     }
 
@@ -1961,12 +1943,12 @@ int32_t StartDFileThreadsInner(DFileSession *session)
     }
 
     if (PthreadCreate(&(session->receiverTid), NULL, DFileReceiverHandle, session)) {
-        DFILE_LOGE(TAG, "Create receiver thread failed");
+        LOGE(TAG, "Create receiver thread failed");
         goto L_ERR_RECEIVER_THREAD;
     }
 
     if (PthreadCreate(&(session->controlTid), NULL, DFileControlHandle, session)) {
-        DFILE_LOGE(TAG, "Create control thread failed");
+        LOGE(TAG, "Create control thread failed");
         goto L_ERR_CONTROL_THREAD;
     }
     return NSTACKX_EOK;
@@ -1982,7 +1964,7 @@ L_ERR_RECEIVER_THREAD:
 L_ERR_SENDER_THREAD:
     DFileSessionSetTerminateFlag(session);
     if (PostEvent(&session->eventNodeChain, session->epollfd, TerminateMainThreadInner, session) != NSTACKX_EOK) {
-        DFILE_LOGE(TAG, "post terminate thread failed");
+        LOGE(TAG, "post terminate thread failed");
     }
     PthreadJoin(session->tid, NULL);
     session->tid = INVALID_TID;
@@ -1994,7 +1976,7 @@ static void FileManagerMsgHandle(FileManagerMsgType msgType, int32_t errCode, vo
 {
     DFileSession *session = context;
     if (msgType == FILE_MANAGER_INNER_ERROR) {
-        DFILE_LOGE(TAG, "Session (%u) fatal error -- File Manager error: %d", session->sessionId, errCode);
+        LOGE(TAG, "Session (%u) fatal error -- File Manager error: %d", session->sessionId, errCode);
         PostFatalEvent(session);
     }
 
@@ -2008,20 +1990,20 @@ int32_t CreateFileManager(DFileSession *session, const uint8_t *key, uint32_t ke
 {
     FileManagerMsgPara msgPara;
     if (session == NULL) {
-        DFILE_LOGE(TAG, "invalid input");
+        LOGE(TAG, "invalid input");
         return NSTACKX_EINVAL;
     }
     if (isSender && (connType != CONNECT_TYPE_P2P && connType != CONNECT_TYPE_WLAN)) {
-        DFILE_LOGE(TAG, "connType for sender is illagal");
+        LOGE(TAG, "connType for sender is illagal");
         return NSTACKX_EINVAL;
     }
     if (keyLen > 0) {
-        if ((keyLen != AES_128_KEY_LENGTH && keyLen != CHACHA20_KEY_LENGTH) || key == NULL) {
-            DFILE_LOGE(TAG, "error key or key len");
+        if (keyLen != AES_128_KEY_LENGTH || key == NULL) {
+            LOGE(TAG, "error key or key len");
             return NSTACKX_EFAILED;
         }
         if (!IsCryptoIncluded()) {
-            DFILE_LOGE(TAG, "crypto is not opened");
+            LOGE(TAG, "crypto is not opened");
             return NSTACKX_EFAILED;
         }
     }
@@ -2031,7 +2013,7 @@ int32_t CreateFileManager(DFileSession *session, const uint8_t *key, uint32_t ke
     msgPara.context = session;
     session->fileManager = FileManagerCreate(isSender, &msgPara, key, keyLen, connType);
     if (session->fileManager == NULL) {
-        DFILE_LOGE(TAG, "create filemanager failed");
+        LOGE(TAG, "create filemanager failed");
         return NSTACKX_EFAILED;
     }
     return NSTACKX_EOK;
@@ -2049,15 +2031,3 @@ void DestroyReceiverPipe(DFileSession *session)
     }
 }
 
-void DFileSetEvent(void *softObj, DFileEventFunc func)
-{
-    g_dfileEventFunc = func;
-    (void)softObj;
-}
-
-void NSTACKX_DFileAssembleFunc(void *softObj, const DFileEvent *info)
-{
-    if (g_dfileEventFunc != NULL) {
-        g_dfileEventFunc(softObj, info);
-    }
-}

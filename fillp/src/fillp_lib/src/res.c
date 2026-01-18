@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -76,7 +76,7 @@ struct GlobalResource g_resource = {
     FILLP_FLOW_CONTROL_MULTI_NUM_INITIAL_VAL_EXT, /* fcControlMultiNumInitialValue */
     FILLP_FC_MULTI_ADJUST_CONST_EXT,              /* fcMultiAdjustConst */
     FILLP_FLOW_CONTROL_MULTI_NUM_STEP_EXT,        /* fcMultiNumStep */
-    FILLP_FC_NINETY_PERCENT_VAL_EXT,               /* fcNightyPercentVal */
+    FILLP_FC_NINTY_PERCENT_VAL_EXT,               /* fcNightyPercentVal */
     FILLP_DEFAULT_BFULL_CPU_THRESHOLD_RATE_EXT,   /* fullCpuUseThresholdRate */
     0                                             /* uint32_reserve */
 };
@@ -127,8 +127,10 @@ void InitGlobalResourceDefault(void)
     g_resource.fcControlMultiNumInitialValue = FILLP_FLOW_CONTROL_MULTI_NUM_INITIAL_VAL_EXT;
     g_resource.fcMultiAdjustConst = FILLP_FC_MULTI_ADJUST_CONST_EXT;
     g_resource.fcMultiNumStep = FILLP_FLOW_CONTROL_MULTI_NUM_STEP_EXT;
-    g_resource.fcNightyPercentVal = FILLP_FC_NINETY_PERCENT_VAL_EXT;
+    g_resource.fcNightyPercentVal = FILLP_FC_NINTY_PERCENT_VAL_EXT;
     g_resource.fullCpuUseThresholdRate = FILLP_DEFAULT_BFULL_CPU_THRESHOLD_RATE_EXT;
+
+    return;
 }
 #ifdef __cplusplus
 }

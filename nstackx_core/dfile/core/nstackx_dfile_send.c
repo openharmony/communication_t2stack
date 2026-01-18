@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2021 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -15,7 +15,7 @@
 
 #include "nstackx_dfile_session.h"
 
-#include "nstackx_dfile_log.h"
+#include "nstackx_log.h"
 #include "nstackx_socket.h"
 
 #define TAG "nStackXDFile"
@@ -24,7 +24,6 @@
 
 #define MAX_NR_IOVCNT       20
 #define MAX_UDP_PAYLOAD     65507
-#define MAX_SEND_COUNT      1
 
 static inline uint32_t GetIovListSize(void)
 {
@@ -104,7 +103,7 @@ static int32_t TcpSendFileDataFrame(Socket *socket, PeerInfo *peerInfo, List *p,
         NSTACKX_ATOM_FETCH_INC(&peerInfo->eAgainCount);
         ret = NSTACKX_EAGAIN;
     } else {
-        DFILE_LOGE(TAG, "socket send failed ret is %d errno is %d", ret, errno);
+        LOGE(TAG, "socket send failed ret is %d errno is %d", ret, errno);
         ret = NSTACKX_EFAILED;
     }
 
@@ -155,7 +154,7 @@ static int32_t SendFileDataFrame(DFileSession *session, PeerInfo *peerInfo, List
                 NSTACKX_ATOM_FETCH_INC(&peerInfo->eAgainCount);
                 return ret;
             } else {
-                DFILE_LOGE(TAG, "socket sendto failed");
+                LOGE(TAG, "socket sendto failed");
                 break;
             }
         }
@@ -190,7 +189,7 @@ static int32_t CheckUnsentList(List *unsent, List *head, int32_t maxCount)
 
 static int32_t GetMaxSendCount(void)
 {
-    return MAX_SEND_COUNT;
+    return 1;
 }
 
 static int32_t DoSendDataFrame(DFileSession *session, List *head, int32_t count, uint32_t tid, uint8_t socketIndex)
@@ -207,7 +206,7 @@ static int32_t DoSendDataFrame(DFileSession *session, List *head, int32_t count,
         while (count < maxCount && FileManagerHasPendingData(session->fileManager)) {
             ret = FileManagerFileRead(session->fileManager, tid, &block, maxCount - count);
             if (ret < 0) {
-                DFILE_LOGE(TAG, "FileManagerFileRead failed %d", ret);
+                LOGE(TAG, "FileManagerFileRead failed %d", ret);
                 break;
             }
             if (ret == 0) {
@@ -258,14 +257,14 @@ static void CheckSendByBackPress(DFileSession *session, uint32_t tid, uint8_t so
 
     if (session->stopSendCnt[tid] != 0) {
         if (PthreadMutexLock(&session->backPressLock) != 0) {
-            DFILE_LOGE(TAG, "pthread backPressLock mutex lock failed");
+            LOGE(TAG, "pthread backPressLock mutex lock failed");
             return;
         }
 
         stopCnt = session->stopSendCnt[tid];
         if (stopCnt == 0) {
             if (PthreadMutexUnlock(&session->backPressLock) != 0) {
-                DFILE_LOGE(TAG, "pthread backPressLock mutex unlock failed");
+                LOGE(TAG, "pthread backPressLock mutex unlock failed");
             }
             return;
         }
@@ -277,14 +276,14 @@ static void CheckSendByBackPress(DFileSession *session, uint32_t tid, uint8_t so
             fileProcessCnt) : 0;
 
         if (PthreadMutexUnlock(&session->backPressLock) != 0) {
-            DFILE_LOGE(TAG, "pthread backPressLock mutex unlock failed");
+            LOGE(TAG, "pthread backPressLock mutex unlock failed");
             return;
         }
 
         sleepTime = CapsTcp(session) ? NSTACKX_INIT_RATE_STAT_INTERVAL : peerInfo->rateStateInterval;
 
 #ifndef NSTACKX_WITH_LITEOS
-        DFILE_LOGI(TAG, "tid %u sleep %u us fileProCnt %u Interval %u lastStopCnt %u stopSendCnt %u", tid, sleepTime,
+        LOGI(TAG, "tid %u sleep %u us fileProCnt %u Interval %u lastStopCnt %u stopSendCnt %u", tid, sleepTime,
              fileProcessCnt, peerInfo->rateStateInterval, stopCnt, session->stopSendCnt[tid]);
 #endif
         (void)usleep(sleepTime);
@@ -331,7 +330,7 @@ int32_t SendControlFrame(DFileSession *session, QueueNode *queueNode)
         } else if (errno == EAGAIN) {
             ret = NSTACKX_EAGAIN;
         } else {
-            DFILE_LOGE(TAG, "socket send failed ret is %d errno is %d", ret, errno);
+            LOGE(TAG, "socket send failed ret is %d errno is %d", ret, errno);
             ret = NSTACKX_EFAILED;
         }
         return ret;
@@ -341,7 +340,7 @@ int32_t SendControlFrame(DFileSession *session, QueueNode *queueNode)
     ret = SocketSend(session->socket[socketIndex], queueNode->frame, queueNode->length);
     if (ret <= 0) {
         if (ret != NSTACKX_EAGAIN) {
-            DFILE_LOGE(TAG, "MpEscape. socket:%u send failed. Errno:%d", socketIndex, errno);
+            LOGE(TAG, "MpEscape. socket:%u send failed. Errno:%d", socketIndex, errno);
             ret = NSTACKX_EFAILED;
         }
     }
@@ -356,7 +355,7 @@ int32_t SendOutboundFrame(DFileSession *session, QueueNode **preQueueNode)
 
     do {
         if (PthreadMutexLock(&session->outboundQueueLock) != 0) {
-            DFILE_LOGE(TAG, "Pthread mutex lock failed");
+            LOGE(TAG, "Pthread mutex lock failed");
             ret = NSTACKX_EFAILED;
             break;
         }
@@ -365,7 +364,7 @@ int32_t SendOutboundFrame(DFileSession *session, QueueNode **preQueueNode)
             session->outboundQueueSize--;
         }
         if (PthreadMutexUnlock(&session->outboundQueueLock) != 0) {
-            DFILE_LOGE(TAG, "Pthread mutex unlock failed");
+            LOGE(TAG, "Pthread mutex unlock failed");
             ret = NSTACKX_EFAILED;
             break;
         }
@@ -448,8 +447,8 @@ int32_t SocketRecvForTcp(DFileSession *session, uint8_t *buffer, struct sockaddr
 
     frameHeader = (DFileFrameHeader *)(session->recvBuffer);
     payloadLen = ntohs(frameHeader->length);
-    if (payloadLen >= NSTACKX_RECV_BUFFER_LEN) {
-        DFILE_LOGI(TAG, "header length is %u recv length is %u payloadLen is %u type %u", length,
+    if (frameHeader->type >= NSTACKX_DFILE_TYPE_MAX || payloadLen >= NSTACKX_RECV_BUFFER_LEN) {
+        LOGI(TAG, "header length is %u recv length is %u payloadLen is %u type %u", length,
              session->recvLen, payloadLen, frameHeader->type);
         return NSTACKX_EFAILED;
     }

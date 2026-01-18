@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -15,6 +15,8 @@
 
 #ifndef FILLP_UTILS_H
 #define FILLP_UTILS_H
+#include <time.h>
+#include "fillp_os.h"
 #include "opt.h"
 #include "fillp_function.h"
 #include "log.h"
@@ -29,8 +31,6 @@ extern "C" {
 #define UTILS_FLAGS_CLEAN(_flag, _f) ((_flag) &= ~(_f))
 #define UTILS_FLAGS_RESET(_flag) ((_flag) &= 0u)
 #define UTILS_FLAGS_CHECK(_flag, _f) (((_flag) & (_f)) == (_f))
-
-#define UTILS_ARRAY_LEN(_a) (sizeof(_a) / sizeof((_a)[0]))
 
 #define UTILS_MIN(a, b) ((a) < (b) ? (a) : (b))
 #define UTILS_MAX(a, b) ((a) > (b) ? (a) : (b))

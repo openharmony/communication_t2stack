@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -196,7 +196,7 @@ FILLP_INT32 FtAppValidateConfigParams(IN FILLP_CONST FillpAppGlobalConfigsSt *gl
                   4. pack timer
                   5. close pending
   Input         : FILLP_UINT32    name: Timer name which user wants to change the timeout value (FILLP_TIMER_LIST).
-                  FILLP_UINT32 *value : Will specify the timeout value in milliseconds
+                  FILLP_UINT32 *value : Will specify the timeout value in miliseconds
   Output        : NA
   Return        : FILLP_UINT32 SUCCESS/FAILURE
 ********************************************************************/
@@ -247,6 +247,7 @@ static FILLP_INT32 FtAppSetKeepAliveTime(
             FillpErrorType ret = SpungePostMsg(sock->inst, (void *)sock, MSG_TYPE_SET_KEEP_ALIVE, FILLP_TRUE);
             if (ret != ERR_OK) {
                 FILLP_LOGERR("fillp_sock_id:%d Failed to set the keep alive time for system socket", sockIndex);
+
                 return ret;
             }
 
@@ -322,6 +323,7 @@ static FILLP_INT32 FtAppConfigSetTxBurst(
     configValue = *(FILLP_UINT16 *)value;
     if ((configValue == 0) || (configValue > FILLP_MAX_TX_RX_BURST)) {
         FILLP_LOGERR("fillp_sock_id:%d txBurst is invalid parameter!!!", sockIndex);
+
         return ERR_FAILURE;
     }
 
@@ -989,7 +991,7 @@ static inline FILLP_INT32 FtAppGetMaxServerSendCache(void *value, FILLP_CONST st
     FILLP_UNUSED_PARA(value);
     FILLP_UNUSED_PARA(resource);
     FILLP_LOGERR("Server feature Not enabled : FT_CONF_MAX_SERVER_ALLOW_SEND_CACHE is "
-        "server only option so cannot GET !!!");
+        "server only option so cant GET !!!");
     return ERR_FEATURE_MACRO_NOT_ENABLED;
 #endif
 }
@@ -1003,7 +1005,7 @@ static inline FILLP_INT32 FtAppGetMaxServeRecvCache(void *value, FILLP_CONST str
     FILLP_UNUSED_PARA(value);
     FILLP_UNUSED_PARA(resource);
     FILLP_LOGERR("Server feature Not enabled : FT_CONF_MAX_SERVER_ALLOW_RECV_CACHE is "
-        "server only option so cannot GET !!!");
+        "server only option so cant GET !!!");
     return ERR_FEATURE_MACRO_NOT_ENABLED;
 #endif
 }
@@ -1017,7 +1019,7 @@ static inline FILLP_INT32 FtAppConfigGetOppositeSetRate(void *value, FILLP_CONST
     FILLP_UNUSED_PARA(value);
     FILLP_UNUSED_PARA(resource);
     FILLP_LOGERR("Server feature Not enabled : FT_CONF_OPPOSITE_SET_RATE is "
-        "server only option so cannot GET !!!");
+        "server only option so cant GET !!!");
     return ERR_FEATURE_MACRO_NOT_ENABLED;
 #endif
 }

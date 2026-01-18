@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -19,7 +19,6 @@
 #include "fillp_algorithm.h"
 #include "fillp_common.h"
 #include "fillp_output.h"
-#include "fillp_dfx.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -185,6 +184,8 @@ void FillpCalSendInterval(struct FillpPcb *pcb)
 
     pcb->sendTimerNode.interval = (FILLP_UINT32)(flowControl->sendInterval / FILLP_FC_IN_BIT);
     FILLP_LOGDBG("Send interval %lld, timer_interval:%u", flowControl->sendInterval, pcb->sendTimerNode.interval);
+
+    return;
 }
 
 void FillpFcTailProtected(struct FillpPcb *pcb, struct FillpPktPack *pack)
@@ -229,6 +230,8 @@ void FillpFcTailProtected(struct FillpPcb *pcb, struct FillpPktPack *pack)
         pcb->send.tailProtect.samePackCount = FILLP_NULL;
         pcb->send.tailProtect.lastPackSeq = ackSeqNum;
     }
+
+    return;
 }
 
 void FillpFcPackInput(struct FillpPcb *pcb, struct FillpPktPack *pack)
@@ -240,6 +243,8 @@ void FillpFcPackInput(struct FillpPcb *pcb, struct FillpPktPack *pack)
     if (!(pack->flag & FILLP_PACK_FLAG_REQURE_RTT)) {
         FillpFcTailProtected(pcb, pack);
     }
+
+    return;
 }
 
 void FillpFcNackInput(struct FillpPcb *pcb, struct FillpPktNack *nack)
@@ -336,6 +341,8 @@ void FillpFcDataInput(struct FillpPcb *pcb, FILLP_CONST struct FillpPktHead *pkt
     pcb->statistics.traffic.totalRecvedBytes += ((FILLP_UINT32)pkt->dataLen);
     pcb->statistics.pack.periodRecvedOnes++;
     pcb->statistics.pack.periodRecvBits += FILLP_FC_VAL_IN_BITS((FILLP_ULLONG)pkt->dataLen);
+
+    return;
 }
 
 /* discard a data packet */
@@ -343,18 +350,24 @@ void FillpFcRecvDropOne(struct FillpPcb *pcb)
 {
     pcb->statistics.pack.periodDroped++;
     pcb->statistics.traffic.totalDroped++;
+
+    return;
 }
 
 /* recv an packet outof order */
 void FillpFcRecvOutOfOrder(struct FillpPcb *pcb)
 {
     pcb->statistics.traffic.totalOutOfOrder++;
+
+    return;
 }
 
 /* calculate the lost packets on recv side */
 void FillpFcRecvLost(struct FillpPcb *pcb, FILLP_UINT32 ones)
 {
     pcb->statistics.traffic.totalRecvLost += ones;
+
+    return;
 }
 
 void FillpFcCycle(void *arg)
@@ -378,7 +391,6 @@ void FillpFcCycle(void *arg)
         FILLP_LOGERR("Keep alive timeout, fillp_sock_id:%d,detaTime:%lld,keepAliveTime:%u(ms)",
             sock->index, detaTime, sock->resConf.common.keepAliveTime);
 
-        FillpDfxSockLinkAndQosNotify(sock, FILLP_DFX_LINK_KEEPALIVE_TIMEOUT);
         SpungeShutdownSock(sock, SPUNGE_SHUT_RDWR);
         sock->errEvent |= SPUNGE_EPOLLERR;
         SpungeEpollEventCallback(sock, (FILLP_INT)SPUNGE_EPOLLIN | (FILLP_INT)SPUNGE_EPOLLERR, 1);
@@ -391,6 +403,8 @@ void FillpFcCycle(void *arg)
     FILLP_LOGDTL("update the keep alive interval to %u, fillp_sock_id:%d, detaTime:%lld, keepAliveTime:%u(ms)",
         pcb->keepAliveTimerNode.interval, sock->index, detaTime, sock->resConf.common.keepAliveTime);
     FillpEnableKeepAliveTimer(pcb);
+
+    return;
 }
 
 #ifdef __cplusplus

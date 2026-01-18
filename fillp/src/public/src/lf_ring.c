@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -83,6 +83,7 @@ void FillpLfRingInit(struct FillpLfRing *ring, char *name, size_t size)
     ring->prodSafe = FILLP_TRUE;
 
     (void)memset_s(ring->name, sizeof(ring->name), '\0', sizeof(ring->name));
+    return;
 }
 
 void FillpLfRingSetProdSafe(struct FillpLfRing *ring, FILLP_BOOL safe)

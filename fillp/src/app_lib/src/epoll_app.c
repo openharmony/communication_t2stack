@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -80,6 +80,8 @@ static void EpRbtreeInsert(struct EventPoll *ep, struct EpItem *epi)
     *p = &epi->rbn;
 
     FillpRbInsertColor(&epi->rbn, &ep->rbr);
+
+    return;
 }
 
 /*
@@ -94,6 +96,8 @@ static void EpollAddToSockWaitList(struct FtSocket *sock, struct EpItem *epi)
     }
     HlistAddTail(&sock->epTaskList, &epi->sockWaitNode);
     (void)SYS_ARCH_SEM_POST(&sock->epollTaskListLock);
+
+    return;
 }
 
 /* Check and triggle the event when do epoll ctl */
@@ -348,7 +352,7 @@ static FILLP_INT EpPoll(
       deadlock as the core thread will not get the lock and update the readylist.
       Also the FtEpollWait is running in another thread, the check here is
       performs only reading and validate for NULL, hence the wait lock is not
-      acquired. Acquire lock here also might reduce performance
+      acquired. Acquire lock here also might reduce performace
     */
     while (needLoopNun == FILLP_TRUE) {
         if (sock->allocState == SOCK_ALLOC_STATE_EPOLL_TO_CLOSE) {
@@ -560,7 +564,7 @@ static FILLP_INT SpungeEpollCtlHandleAddEvent(
     struct FtSocket *epollSock,
     struct FtSocket *sock,
     FILLP_INT epFd,
-    FILLP_CONST struct EpItem *epi,
+    struct EpItem *epi,
     FILLP_CONST struct SpungeEpollEvent *event)
 {
     FILLP_INT error = 0;
@@ -571,7 +575,7 @@ static FILLP_INT SpungeEpollCtlHandleAddEvent(
         return -1;
     }
 
-    /* It means, that A ft-socket can be registered up to 10 epoll instances, not
+    /* It means, that A ft-socket can be registered upto 10 epoll instances, not
           more than that. This value is compile config controlled.
     */
     if (sock->associatedEpollInstanceIdx >= FILLP_NUM_OF_EPOLL_INSTANCE_SUPPORTED) {

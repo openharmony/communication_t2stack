@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -17,7 +17,9 @@
 #define FILLP_QUEUE_H
 
 #include "lf_ring.h"
+#include "log.h"
 #include "spunge_mem.h"
+#include "fillp_function.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -90,6 +92,8 @@ static __inline void FillpQueueInit(FillpQueue *q, char *name, size_t size, FILL
 
     q->allocType = allocType;
     q->size = size;
+
+    return;
 }
 
 static __inline FillpQueue *FillpQueueCreate(char *name, size_t size, FILLP_INT allocType)

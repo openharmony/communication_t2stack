@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2021 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -39,12 +39,6 @@ typedef struct _WifiStationInfo {
     int32_t signal;
     uint32_t freq;
 } WifiStationInfo;
-
-/* DFX */
-typedef struct _RamInfo {
-    uint32_t availableRam;
-    uint32_t totalRam;
-} RamInfo;
 
 typedef enum {
     ROOT_QUEUE = -1,        /* ROOT queueu */

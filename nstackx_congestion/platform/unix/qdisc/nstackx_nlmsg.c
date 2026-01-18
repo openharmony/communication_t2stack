@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2021 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -134,7 +134,7 @@ int32_t RecvNetlinkResponse(int32_t nlSockFd, struct NlmsgCallback *nlcb)
     };
 
     int32_t recvLen;
-    char buf[MAX_NETLINK_BUFFER_LEN] = {0};
+    char buf[MAX_NETLINK_BUFFER_LEN] = { 0 };
     iovRecv.iov_base = buf;
     iovRecv.iov_len = MAX_NETLINK_BUFFER_LEN;
 

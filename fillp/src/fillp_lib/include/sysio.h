@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -16,6 +16,7 @@
 #ifndef FILLP_SYS_IO_H
 #define FILLP_SYS_IO_H
 
+#include "fillptypes.h"
 #include "hlist.h"
 
 #ifdef __cplusplus
@@ -30,7 +31,7 @@ typedef struct InnerSysIoOps {
     void *(*fetchPacket)(void *sock, void *buf, void *count);
     int (*select)(void *arg, FILLP_INT timeoutUs);
     void *(*createSocket)(FILLP_INT domain, FILLP_INT type, FILLP_INT protocol);
-    int (*destroySysIoSocket)(void *arg);
+    int (*destorySysIoSocket)(void *arg);
     int (*listen)(void *argSock);
 
     int (*bind)(void *argSock, void *argPcb, FILLP_SOCKADDR *addr, FILLP_UINT16 len);
@@ -82,4 +83,4 @@ int SysioIsSockReadable(void *arg);
 }
 #endif
 
-#endif /* FILLP_SYS_IO_H */
+#endif

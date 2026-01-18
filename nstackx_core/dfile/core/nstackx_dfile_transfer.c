@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2021 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -20,13 +20,13 @@
 #include "nstackx_dfile.h"
 #include "nstackx_dfile_frame.h"
 #include "nstackx_dfile_session.h"
+#include "nstackx_dfile_mp.h"
 #include "nstackx_error.h"
 #include "nstackx_file_manager.h"
 #include "nstackx_list.h"
-#include "nstackx_dfile_log.h"
+#include "nstackx_log.h"
 #include "nstackx_timer.h"
 #include "nstackx_util.h"
-#include "nstackx_dfile_dfx.h"
 #include "securec.h"
 
 #define TAG "nStackXDFile"
@@ -49,13 +49,13 @@ static void SetReceiveState(DFileTrans *dFileTrans, DFileReceiveState nextState)
 
 int32_t DFileTransSendFiles(DFileTrans *trans, FileListInfo *fileListInfo)
 {
-    DFILE_LOGI(TAG, "transId %hu, fileNum %u", trans->transId, fileListInfo->fileNum);
+    LOGI(TAG, "transId %u, fileNum %u", trans->transId, fileListInfo->fileNum);
     return FileListSetSendFileList(trans->fileList, fileListInfo);
 }
 
 int32_t DFileTransAddExtraInfo(DFileTrans *trans, uint16_t pathType, uint8_t noticeFileNameType, char *userData)
 {
-    DFILE_LOGI(TAG, "transId %hu, pathType %hu", trans->transId, pathType);
+    LOGI(TAG, "transId %u, pathType %u", trans->transId, pathType);
     return FileListAddExtraInfo(trans->fileList, pathType, noticeFileNameType, userData);
 }
 
@@ -72,8 +72,7 @@ static const char *GetSendStateMessage(DFileSendState state)
         [STATE_SEND_FILE_FAIL] = "send file fail",
     };
 
-    uint32_t msgLen = sizeof(message) / sizeof(message[0]);
-    for (uint32_t i = 0; i < msgLen; i++) {
+    for (uint32_t i = 0; i < sizeof(message) / sizeof(message[0]); i++) {
         if (state == i) {
             return message[i];
         }
@@ -95,8 +94,7 @@ static const char *GetReceiveStateMessage(DFileReceiveState state)
         [STATE_RECEIVE_FILE_FAIL] = "receive file fail",
     };
 
-    uint32_t msgLen = sizeof(message) / sizeof(message[0]);
-    for (uint32_t i = 0; i < msgLen; i++) {
+    for (uint32_t i = 0; i < sizeof(message) / sizeof(message[0]); i++) {
         if (state == i) {
             return message[i];
         }
@@ -183,7 +181,7 @@ void ReviewSuccessMsg(const DFileTrans *dFileTrans, DFileTransMsgType *msgType,
              * DFILE_TRANS_MSG_FILE_SEND_FAIL directly.
              */
             *msgType = DFILE_TRANS_MSG_FILE_SEND_FAIL;
-            DFILE_LOGI(TAG, "transId %u: no success file", dFileTrans->transId);
+            LOGI(TAG, "transId %u: no success file", dFileTrans->transId);
         }
     }
     if (*msgType == DFILE_TRANS_MSG_FILE_RECEIVED) {
@@ -197,7 +195,7 @@ void ReviewSuccessMsg(const DFileTrans *dFileTrans, DFileTransMsgType *msgType,
              * DFILE_TRANS_MSG_FILE_RECEIVE_FAIL directly.
              */
             *msgType = DFILE_TRANS_MSG_FILE_RECEIVED_TO_FAIL;
-            DFILE_LOGI(TAG, "transId %u: no success file", dFileTrans->transId);
+            LOGI(TAG, "transId %u: no success file", dFileTrans->transId);
         }
     }
 }
@@ -354,7 +352,7 @@ static void SendFileHeader(DFileTrans *dFileTrans, DFileSendState *nextState)
             break;
         }
 
-        DFILE_LOGI(TAG, "transId %hu send header successfully. len %zu lastEncodeHeaderFileId %d, fileNum %u",
+        LOGI(TAG, "transId %hu send header successfully. len %zu lastEncodeHeaderFileId %d, fileNum %u",
              dFileTrans->transId, dFileTrans->sendBufferLength, lastEncodeHeaderFileId, fileNum);
 
         dFileTrans->lastSentHeaderFileId = lastEncodeHeaderFileId;
@@ -373,7 +371,7 @@ void FileManagerSenderMsgHandler(uint16_t fileId, FileManagerMsgType msgType, Fi
         return;
     }
     if (msgType != FILE_MANAGER_TRANS_IN_PROGRESS) {
-        DFILE_LOGI(TAG, "transId %u, Sender: File Id %u got message (%d) from file manager, code %d",
+        LOGI(TAG, "transId %u, Sender: File Id %u got message (%d) from file manager, code %d",
              dFileTrans->transId, fileId, msgType, (msgType == FILE_MANAGER_SEND_FAIL) ? msg->errorCode : 0);
     }
 
@@ -411,7 +409,7 @@ static void FileManagerTransMsgHandler(uint16_t fileId, FileManagerMsgType msgTy
         }
     }
     if (!isFound) {
-        DFILE_LOGE(TAG, "can't get valid trans %u to send msg", transId);
+        LOGE(TAG, "can't get valid trans %u to send msg", transId);
         return;
     }
 
@@ -425,6 +423,7 @@ static void FileManagerTransMsgHandler(uint16_t fileId, FileManagerMsgType msgTy
 static int32_t StartFileManagerSenderTask(DFileTrans *dFileTrans)
 {
     FileListMsgPara msgPara;
+    uint32_t i;
     FileList *fileList = dFileTrans->fileList;
     uint16_t fileNum = FileListGetNum(fileList);
     SendFileListInfo sendFileListInfo;
@@ -436,10 +435,9 @@ static int32_t StartFileManagerSenderTask(DFileTrans *dFileTrans)
         return NSTACKX_EOK;
     }
     if (fileNum > NSTACKX_DFILE_MAX_FILE_NUM) {
-        DFILE_LOGE(TAG, "too many files: %u", fileNum);
+        LOGE(TAG, "too many files: %u", fileNum);
         return NSTACKX_ENOMEM;
     }
-    uint32_t i;
     for (i = 0; i < FileListGetNum(fileList); i++) {
         sendFileListInfo.fileList[i] = fileList->list[i].fullFileName;
         sendFileListInfo.fileSize[i] = fileList->list[i].fileSize;
@@ -457,7 +455,7 @@ static int32_t StartFileManagerSenderTask(DFileTrans *dFileTrans)
     msgPara.context = dFileTrans->session;
     int32_t ret = FileManagerSendFileTask(dFileTrans->fileManager, &sendFileListInfo, &msgPara);
     if (ret != NSTACKX_EOK) {
-        DFILE_LOGE(TAG, "Start send file task fail %d", ret);
+        LOGE(TAG, "Start send file task fail %d", ret);
         return ret;
     }
     dFileTrans->fileManagerTaskStarted = NSTACKX_TRUE;
@@ -493,7 +491,6 @@ static void WaitForFileHeaderConfirm(DFileTrans *dFileTrans, DFileSendState *nex
         if (dFileTrans->headerRetryCnt > dFileTrans->config.maxCtrlFrameRetryCnt) {
             *nextState = STATE_SEND_FILE_FAIL;
             dFileTrans->errorCode = DFILE_TRANS_FILE_HEADER_CONFIRM_TIMEOUT;
-            WaitFileHeaderTimeoutEvent(dFileTrans->errorCode);
             return;
         }
         dFileTrans->headerRetryCnt++;
@@ -517,14 +514,14 @@ static void SendFileDataOngoing(DFileTrans *dFileTrans, DFileSendState *nextStat
     if (GetElapseTime(&dFileTrans->ts) >= dFileTrans->timeout) {
         if (!CapsTcp(dFileTrans->session)) {
             dFileTrans->lostAckCnt++;
-            DFILE_LOGW(TAG, "transId %u Sender lost ACK count %u totalRecvBlocks %llu inboundQueueSize %llu",
+            LOGW(TAG, "transId %u Sender lost ACK count %u totalRecvBlocks %llu inboundQueueSize %llu",
                 dFileTrans->transId, dFileTrans->lostAckCnt,
                 NSTACKX_ATOM_FETCH(&(dFileTrans->session->totalRecvBlocks)),
                 dFileTrans->session->inboundQueueSize);
             if (dFileTrans->lostAckCnt >= dFileTrans->config.maxAckCnt) {
                 *nextState = STATE_SEND_FILE_FAIL;
                 dFileTrans->errorCode = DFILE_TRANS_FILE_DATA_ACK_TIMEOUT;
-                DFILE_LOGW(TAG, "transId %u Sender lost too many ACK count", dFileTrans->transId);
+                LOGW(TAG, "transId %u Sender lost too many ACK count", dFileTrans->transId);
                 return;
             }
         }
@@ -564,6 +561,7 @@ static void WaitForFileTransferDoneFrame(DFileTrans *dFileTrans, DFileSendState 
     /* Need to re-send data block. */
     if (!FileManagerIsLastBlockRead(dFileTrans->fileManager, dFileTrans->transId)) {
         *nextState = STATE_SEND_FILE_DATA_ONGOING;
+        return;
     }
 }
 
@@ -582,7 +580,7 @@ static void SendFileTransferDoneAckFrame(DFileTrans *dFileTrans, DFileSendState 
     }
     TransferDoneAckNode *transferDoneAckNode = calloc(1, sizeof(TransferDoneAckNode));
     if (transferDoneAckNode == NULL) {
-        DFILE_LOGE(TAG, "transferDoneAckNode calloc failed");
+        LOGE(TAG, "transferDoneAckNode calloc failed");
         return;
     }
     transferDoneAckNode->transId = dFileTrans->transId;
@@ -590,7 +588,7 @@ static void SendFileTransferDoneAckFrame(DFileTrans *dFileTrans, DFileSendState 
     if (MutexListAddNode(&dFileTrans->session->transferDoneAckList, &transferDoneAckNode->list, 0) != NSTACKX_EOK) {
         free(transferDoneAckNode);
     }
-    DFILE_LOGI(TAG, "transferDoneAckNode add transId %u", dFileTrans->transId);
+    LOGI(TAG, "transferDoneAckNode add transId %u", dFileTrans->transId);
     if (i == 0) {
         return;
     }
@@ -623,23 +621,23 @@ static void SetSendState(DFileTrans *dFileTrans, DFileSendState nextState)
          * After receiving TRANSFER_DONE frame, sender still may encounter error, such as sending TRANSFER_DONE_ACK
          * frame. In such case, we just stop the state machine and report finish to user.
          */
-        DFILE_LOGW(TAG, "transId %u Sender error during state %s - %s, ignore error and finish sending process",
+        LOGW(TAG, "transId %u Sender error during state %s - %s, ignore error and finish sending process",
              dFileTrans->transId, GetSendStateMessage(dFileTrans->sendState), GetErrorMessage(dFileTrans->errorCode));
         nextState = STATE_SEND_FILE_DONE;
     }
 
     if (dFileTrans->errorCode != DFILE_TRANS_NO_ERROR) {
-        DFILE_LOGE(TAG, "transId %u error: %s", dFileTrans->transId, GetErrorMessage(dFileTrans->errorCode));
+        LOGE(TAG, "transId %u error: %s", dFileTrans->transId, GetErrorMessage(dFileTrans->errorCode));
     }
     dFileTrans->sendState = nextState;
 
     if ((nextState == STATE_SEND_FILE_DONE || nextState == STATE_SEND_FILE_FAIL) &&
         dFileTrans->fileManagerTaskStarted) {
-        DFILE_LOGI(TAG, "transId: %u, Send state: %s -> %s", dFileTrans->transId,
-                GetSendStateMessage(dFileTrans->sendState),GetSendStateMessage(nextState));
+        LOGI(TAG, "transId: %u, Send state: %s -> %s", dFileTrans->transId, GetSendStateMessage(dFileTrans->sendState),
+             GetSendStateMessage(nextState));
         if (FileManagerStopTask(dFileTrans->fileManager, dFileTrans->transId, FILE_LIST_TRANSFER_FINISH) !=
             NSTACKX_EOK) {
-            DFILE_LOGE(TAG, "transId %u FileManagerStopTask failed", dFileTrans->transId);
+            LOGE(TAG, "transId %u FileManagerStopTask failed", dFileTrans->transId);
         }
         dFileTrans->fileManagerTaskStarted = NSTACKX_FALSE;
     }
@@ -696,6 +694,7 @@ static void ReceiveFileHeaderOngoing(DFileTrans *dFileTrans, DFileReceiveState *
     uint8_t timeout = (GetElapseTime(&dFileTrans->ts) >= dFileTrans->timeout) ? NSTACKX_TRUE : NSTACKX_FALSE;
     if (dFileTrans->allFileNameReceived || timeout) {
         *nextState = STATE_SEND_FILE_HEADER_CONFIRM;
+        return;
     }
 }
 
@@ -715,7 +714,7 @@ void FileManagerReceiverMsgHandler(uint16_t fileId, FileManagerMsgType msgType, 
         return;
     }
     if (msgType != FILE_MANAGER_RECEIVE_SUCCESS) {
-        DFILE_LOGE(TAG, "transId %u, Receiver: File Id %u got message (%d) from file manager, code %d",
+        LOGE(TAG, "transId %u, Receiver: File Id %u got message (%d) from file manager, code %d",
              dFileTrans->transId, fileId, msgType, (msgType == FILE_MANAGER_RECEIVE_FAIL) ? msg->errorCode : 0);
     }
 
@@ -774,7 +773,7 @@ static int32_t StartFileManagerReceiverTask(DFileTrans *dFileTrans)
     msgPara.context = dFileTrans->session;
     int32_t ret = FileManagerRecvFileTask(dFileTrans->fileManager, &fileListInfo, &msgPara);
     if (ret != NSTACKX_EOK) {
-        DFILE_LOGE(TAG, "Start receive task fail %d", ret);
+        LOGE(TAG, "Start receive task fail %d", ret);
         free(fileListInfo.fileBasicInfo);
         return NSTACKX_EFAILED;
     }
@@ -796,7 +795,7 @@ static void SendFileHeaderConfirm(DFileTrans *dFileTrans, DFileReceiveState *nex
         }
         dFileTrans->lastAckedHeaderFileId = lastEncAckedHeaderFileId;
         if (dFileTrans->lastAckedHeaderFileId == FileListGetNum(dFileTrans->fileList)) {
-            DFILE_LOGI(TAG, "transId %u last send header confirm successfully. len %u",
+            LOGI(TAG, "transId %u last send header confirm successfully. len %u",
                 dFileTrans->transId, dFileTrans->sendBufferLength);
             break;
         }
@@ -866,7 +865,7 @@ static uint8_t ReceiverIdleTimeout(DFileTrans *dFileTrans, DFileReceiveState *ne
     uint32_t elapseTime = GetElapseTime(&dFileTrans->ts);
     if (elapseTime >= dFileTrans->timeout) {
         dFileTrans->idleTimeoutCnt++;
-        DFILE_LOGE(TAG,
+        LOGE(TAG,
             "transId %u: Over %u ms not recv data. idleTimeoutCnt %u last fileid %u sequence %u recv %llu all %llu",
             dFileTrans->transId, elapseTime, dFileTrans->idleTimeoutCnt, dFileTrans->lastFileDataRecvFileId,
             dFileTrans->lastFileDataSequence, dFileTrans->receivedDataFrameCnt, dFileTrans->totalDataFrameCnt);
@@ -893,11 +892,11 @@ static int32_t RefreshFileRecvStatus(DFileTrans *dFileTrans)
     uint32_t fileIdNum = NSTACKX_DFILE_MAX_FILE_NUM;
     if (FileManagerGetReceivedFiles(dFileTrans->fileManager, dFileTrans->transId,
         fileIdList, fileIdSuccessFlag, &fileIdNum) != NSTACKX_EOK) {
-        DFILE_LOGE(TAG, "transId %u get received files failed", dFileTrans->transId);
+        LOGE(TAG, "transId %u get received files failed", dFileTrans->transId);
         return NSTACKX_EFAILED;
     }
     if (fileIdNum == 0) {
-        DFILE_LOGI(TAG, "transId %u get zero received files", dFileTrans->transId);
+        LOGI(TAG, "transId %u get zero received files", dFileTrans->transId);
         return NSTACKX_EOK;
     }
     for (uint32_t i = 0; i < fileIdNum; i++) {
@@ -926,7 +925,7 @@ static void ReceiveFileDataOngoing(DFileTrans *dFileTrans, DFileReceiveState *ne
             return;
         }
         if (RefreshFileRecvStatus(dFileTrans) != NSTACKX_EOK) {
-            DFILE_LOGE(TAG, "transId %u refresh file receive status failed", dFileTrans->transId);
+            LOGE(TAG, "transId %u refresh file receive status failed", dFileTrans->transId);
             *nextState = STATE_RECEIVE_FILE_FAIL;
             dFileTrans->errorCode = DFILE_TRANS_FILE_RECEIVE_TASK_ERROR;
             return;
@@ -946,7 +945,7 @@ static void ReceiveFileDataOngoing(DFileTrans *dFileTrans, DFileReceiveState *ne
     if (*nextState != STATE_SEND_FILE_DATA_ACK && GetElapseTime(&dFileTrans->heartBeatTs) >= dFileTrans->ackInterval) {
         if (dFileTrans->allFileDataReceived) {
             if (FileManagerSetAllDataReceived(dFileTrans->fileManager, dFileTrans->transId) != NSTACKX_EOK) {
-                DFILE_LOGE(TAG, "transId %u get set all file data received failed", dFileTrans->transId);
+                LOGE(TAG, "transId %u get set all file data received failed", dFileTrans->transId);
                 *nextState = STATE_RECEIVE_FILE_FAIL;
                 dFileTrans->errorCode = DFILE_TRANS_FILE_RECEIVE_TASK_ERROR;
                 return;
@@ -964,7 +963,7 @@ static void SendFileTransferDoneFrame(DFileTrans *dFileTrans, DFileReceiveState 
 
     if (GetElapseTime(&dFileTrans->ts) >= dFileTrans->timeout) {
         dFileTrans->errorCode = DFILE_TRANS_FILE_WRITE_FAIL;
-        DFILE_LOGE(TAG, "SendFileTransferDoneFrame timeout");
+        LOGE(TAG, "SendFileTransferDoneFrame timeout");
         *nextState = STATE_RECEIVE_FILE_FAIL;
         return;
     }
@@ -981,7 +980,7 @@ static void SendFileTransferDoneFrame(DFileTrans *dFileTrans, DFileReceiveState 
     if (ret != NSTACKX_EOK) {
         return;
     }
-    DFILE_LOGI(TAG, "file trans fer done frame: transId %u, frameLen %u, fileIdNum %u",
+    LOGI(TAG, "file trans fer done frame: transId %u, frameLen %u, fileIdNum %u",
          dFileTrans->transId, dFileTrans->sendBufferLength, fileIdNum);
     *nextState = STATE_WAIT_FOR_FILE_TRANSFER_DONE_ACK;
 }
@@ -1004,7 +1003,7 @@ static void WaitForFileTransferDoneAck(DFileTrans *dFileTrans, DFileReceiveState
             !CapsTcp(dFileTrans->session)) {
             dFileTrans->errorCode = DFILE_TRANS_TRANSFER_DONE_ACK_TIMEOUT;
             *nextState = STATE_RECEIVE_FILE_FAIL;
-            DFILE_LOGI(TAG, "transId %u enter WaitForFileTransferDoneAck and next state is STATE_RECEIVE_FILE_FAIL",
+            LOGI(TAG, "transId %u enter WaitForFileTransferDoneAck and next state is STATE_RECEIVE_FILE_FAIL",
                  dFileTrans->transId);
             return;
         }
@@ -1012,8 +1011,9 @@ static void WaitForFileTransferDoneAck(DFileTrans *dFileTrans, DFileReceiveState
         ClockGetTime(CLOCK_MONOTONIC, &dFileTrans->ts);
         dFileTrans->transferDoneRetryCnt++;
         *nextState = STATE_SEND_FILE_TRANSFER_DONE;
-        DFILE_LOGI(TAG, "transId %u enter WaitForFileTransferDoneAck and next state is STATE_SEND_FILE_TRANSFER_DONE",
+        LOGI(TAG, "transId %u enter WaitForFileTransferDoneAck and next state is STATE_SEND_FILE_TRANSFER_DONE",
              dFileTrans->transId);
+        return;
     }
 }
 
@@ -1027,7 +1027,7 @@ static void CalculateRecvRate(DFileTrans *dFileTrans)
     uint32_t spendTime = GetTimeDiffMs(&endTs, &dFileTrans->startTs);
     if (spendTime != 0) {
         const double rate = 1.0 * allFileSize / DFILE_MEGABYTES * MSEC_TICKS_PER_SEC / spendTime;
-        DFILE_LOGI(TAG, "Trans#%u Receive time %u ms rate is %.2f MB/s", dFileTrans->transId, spendTime, rate);
+        LOGI(TAG, "Trans#%u Receive time %u ms rate is %.2f MB/s", dFileTrans->transId, spendTime, rate);
     }
 }
 #endif
@@ -1068,23 +1068,23 @@ static void SetReceiveState(DFileTrans *dFileTrans, DFileReceiveState nextState)
          * For receiver, it may encounter error after sending TRANSFER DONE frame.
          * In such case, we just stop the state machine and report finish to user.
          */
-        DFILE_LOGW(TAG, "transId %u, Receiver error during state %s - code %d, ignore and finish receiving process",
+        LOGW(TAG, "transId %u, Receiver error during state %s - code %d, ignore and finish receiving process",
             dFileTrans->transId, GetReceiveStateMessage(dFileTrans->recvState), dFileTrans->errorCode);
         nextState = STATE_RECEIVE_FILE_DONE;
     }
 
     if (dFileTrans->errorCode != DFILE_TRANS_NO_ERROR) {
-        DFILE_LOGE(TAG, "transId %u error: %s", dFileTrans->transId, GetErrorMessage(dFileTrans->errorCode));
+        LOGE(TAG, "transId %u error: %s", dFileTrans->transId, GetErrorMessage(dFileTrans->errorCode));
     }
     dFileTrans->recvState = nextState;
 
     if ((nextState == STATE_RECEIVE_FILE_DONE || nextState == STATE_RECEIVE_FILE_FAIL) &&
         dFileTrans->fileManagerTaskStarted) {
-        DFILE_LOGI(TAG, "transId %u, Receive state: %s -> %s", dFileTrans->transId,
+        LOGI(TAG, "transId %u, Receive state: %s -> %s", dFileTrans->transId,
             GetReceiveStateMessage(dFileTrans->recvState), GetReceiveStateMessage(nextState));
         if (FileManagerStopTask(dFileTrans->fileManager, dFileTrans->transId, FILE_LIST_TRANSFER_FINISH) !=
             NSTACKX_EOK) {
-            DFILE_LOGE(TAG, "transId %u FileManagerStopTask failed", dFileTrans->transId);
+            LOGE(TAG, "transId %u FileManagerStopTask failed", dFileTrans->transId);
         }
         dFileTrans->fileManagerTaskStarted = NSTACKX_FALSE;
     }
@@ -1158,15 +1158,15 @@ static int32_t RenameFileIfExisting(DFileTrans *dFileTrans)
         dFileTrans->onRenameFile(&renamePara);
 
         if (strlen(renamePara.newFileName) == 0 || strlen(renamePara.newFileName) + 1 > NSTACKX_MAX_REMOTE_PATH_LEN) {
-            DFILE_LOGE(TAG, "transId %u rename file %s failed remotePath too long", dFileTrans->transId, fileName);
+            LOGE(TAG, "transId %u rename file %s failed remotePath too long", dFileTrans->transId, fileName);
             return NSTACKX_EFAILED;
         }
         if (GetFileNameLen(renamePara.newFileName) > NSTACKX_MAX_FILE_NAME_LEN) {
-            DFILE_LOGE(TAG, "transId %u rename file %s failed newFileName too long", dFileTrans->transId, fileName);
+            LOGE(TAG, "transId %u rename file %s failed newFileName too long", dFileTrans->transId, fileName);
             return NSTACKX_EFAILED;
         }
         if (FileListRenameFile(dFileTrans->fileList, i + 1, renamePara.newFileName) != NSTACKX_EOK) {
-            DFILE_LOGE(TAG, "transId %u FileListRenameFile  failed", dFileTrans->transId);
+            LOGE(TAG, "transId %u FileListRenameFile  failed", dFileTrans->transId);
             return NSTACKX_EFAILED;
         }
     }
@@ -1187,7 +1187,7 @@ static int32_t HandleFileNameTableFrame(DFileTrans *dFileTrans, DFileFrame *dFil
     }
 
     if (DecodeFileHeaderFrame(dFileTrans->fileList, (FileHeaderFrame *)dFileFrame) != NSTACKX_EOK) {
-        DFILE_LOGE(TAG, "decode file hearder frame failed");
+        LOGE(TAG, "decode file hearder frame failed");
     }
 
     if (!dFileTrans->allFileNameReceived) {
@@ -1230,12 +1230,12 @@ static void UpdateTransParam(DFileTrans *dFileTrans, uint8_t endFlag, uint16_t f
     uint32_t maxFileId = FileListGetNum(dFileTrans->fileList);
     if (endFlag) {
         FileListSetLastBlockReceived(dFileTrans->fileList, fileId);
-        DFILE_LOGI(TAG, "transId %u recv the end frame fileId %hu", dFileTrans->transId, fileId);
+        LOGI(TAG, "transId %u recv the end frame fileId %hu", dFileTrans->transId, fileId);
     }
     if (FileListGetLastBlockReceived(dFileTrans->fileList, (uint16_t)maxFileId)) {
         dFileTrans->shouldSendAckDividor = NSTACKX_SEND_ACK_PER_TWO_RECYCLE;
         if (!dFileTrans->recvLastFramePrint) {
-            DFILE_LOGI(TAG, "transId %u recv the last frame", dFileTrans->transId);
+            LOGI(TAG, "transId %u recv the last frame", dFileTrans->transId);
             dFileTrans->recvLastFramePrint = NSTACKX_TRUE;
         }
     }
@@ -1249,13 +1249,13 @@ static void UpdateTransParam(DFileTrans *dFileTrans, uint8_t endFlag, uint16_t f
         dFileTrans->shouldSendAckDividor = NSTACKX_SEND_ACK_PER_ONE_RECYCLE;
 
         if (!dFileTrans->adjustAckIntervalLimitPrint) {
-            DFILE_LOGI(TAG, "transId %u dFileTrans->ackInterval %u", dFileTrans->transId, dFileTrans->ackInterval);
+            LOGI(TAG, "transId %u dFileTrans->ackInterval %u", dFileTrans->transId, dFileTrans->ackInterval);
             dFileTrans->adjustAckIntervalLimitPrint = NSTACKX_TRUE;
         }
     }
     if (endFlag && fileId == maxFileId) {
         DFileReceiveState nextState;
-        DFILE_LOGI(TAG, "send all retry packets");
+        LOGI(TAG, "send all retry packets");
         SendFileDataAck(dFileTrans, &nextState);
     }
     dFileTrans->receivedDataFrameCnt++;
@@ -1280,7 +1280,7 @@ static int32_t WriteDataFrame(DFileTrans *dFileTrans, FileDataFrame *dataFrame)
 
     int32_t ret = FileManagerFileWrite(dFileTrans->fileManager, dataFrame);
     if (ret != NSTACKX_EOK) {
-        DFILE_LOGE(TAG, "FileManagerFileWrite failed! ret %d", ret);
+        LOGE(TAG, "FileManagerFileWrite failed! ret %d", ret);
         dFileTrans->errorCode = DFILE_TRANS_FILE_WRITE_FAIL;
         SetReceiveState(dFileTrans, STATE_RECEIVE_FILE_FAIL);
         return ret;
@@ -1303,7 +1303,7 @@ static int32_t CheckReceiverTransAndFrameValid(const DFileTrans *dFileTrans, con
 
     /* validate file id */
     if (GetFileIdFromFileDataFrame(dFileTrans->fileList, dataFrame) == NSTACKX_RESERVED_FILE_ID) {
-        DFILE_LOGE(TAG, "dFileTrans %u error. GetFileIdFromFileDataFrame failed", dFileTrans->transId);
+        LOGE(TAG, "dFileTrans %u error. GetFileIdFromFileDataFrame failed", dFileTrans->transId);
         return NSTACKX_EFAILED;
     }
     return NSTACKX_EOK;
@@ -1327,16 +1327,16 @@ static int32_t HandleFileDataFrame(DFileTrans *trans, DFileFrame *dFileFrame)
 
     ret = WriteDataFrame(trans, dataFrame);
     if (ret != NSTACKX_EOK) {
-        DFILE_LOGE(TAG, "transId %u error. WriteDataFrame ret == %d", trans->transId, ret);
+        LOGE(TAG, "transId %u error. WriteDataFrame ret == %d", trans->transId, ret);
         goto L_ERR;
     }
 
     received = FileListGetLastBlockReceived(trans->fileList, FileListGetNum(trans->fileList));
     if (trans->receivedDataFrameCnt >= trans->totalDataFrameCnt) {
-        DFILE_LOGI(TAG, "transId:%u last block received:%u", trans->transId, received);
+        LOGI(TAG, "transId:%u last block received:%u", trans->transId, received);
         if (received) {
             trans->allFileDataReceived = NSTACKX_TRUE;
-            DFILE_LOGI(TAG, "transId %u FINISH!!! retry send %u retry num %u not Insert Count %u %llu/%llu "
+            LOGI(TAG, "transId %u FINISH!!! retry send %u retry num %u not Insert Count %u %llu/%llu "
                 "recvblocklist full times %llu totalSend %llu totalRecv %llu",
                 trans->transId, trans->allRetrySendCount, trans->allRetryCount, trans->notInsertCount,
                 trans->receivedDataFrameCnt, trans->totalDataFrameCnt, trans->recvBlockListFullTimes,
@@ -1359,7 +1359,7 @@ static int32_t HandleTransferDoneFrame(DFileTrans *dFileTrans, DFileFrame *dFile
     if (dFileTrans->sendState != STATE_WAIT_FOR_FILE_TRANSFER_DONE_FRAME &&
         dFileTrans->sendState != STATE_SEND_FILE_TRANSFER_DONE_ACK &&
         dFileTrans->sendState != STATE_SEND_FILE_DATA_ONGOING) {
-        DFILE_LOGE(TAG, "transId %u, HandleTransferDoneFrame failed.sendState %d",
+        LOGE(TAG, "transId %u, HandleTransferDoneFrame failed.sendState %d",
              dFileTrans->transId, dFileTrans->sendState);
         return NSTACKX_EFAILED;
     }
@@ -1382,7 +1382,7 @@ int32_t HandleDFileFrame(DFileTrans *dFileTrans, DFileFrame *dFileFrame)
     }
 
     if (dFileFrame->header.type != NSTACKX_DFILE_FILE_DATA_FRAME) {
-        DFILE_LOGI(TAG, "transId %u, Handle frame (%hhu):%s",
+        LOGI(TAG, "transId %u, Handle frame (%hhu):%s",
              dFileTrans->transId, dFileFrame->header.type, GetFrameName(dFileFrame->header.type));
     }
 
@@ -1550,15 +1550,16 @@ void DFileTransDestroyInner(DFileTrans *dFileTrans)
     dFileTrans->remainDataFrame = NULL;
 
     if (dFileTrans->fileManagerTaskStarted) {
-        DFILE_LOGI(TAG, "transId %u FileManagerStopTask", dFileTrans->transId);
+        LOGI(TAG, "transId %u FileManagerStopTask", dFileTrans->transId);
         if (FileManagerStopTask(dFileTrans->fileManager, dFileTrans->transId, FILE_LIST_TRANSFER_FINISH) !=
             NSTACKX_EOK) {
-            DFILE_LOGE(TAG, "transId %u FileManagerStopTask failed", dFileTrans->transId);
+            LOGE(TAG, "transId %u FileManagerStopTask failed", dFileTrans->transId);
         }
     }
 
     FileListDestroy(dFileTrans->fileList);
     free(dFileTrans);
+    dFileTrans = NULL;
 }
 
 uint64_t DFileTransGetTotalBytes(const DFileTrans *dFileTrans)

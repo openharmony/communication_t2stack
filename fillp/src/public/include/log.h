@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -93,12 +93,6 @@ static inline void FillpLogGetNowTime(struct timeval *tv, struct tm *nowTime)
 
 #define FILLP_SHOWLEVELBUTT(fmt, ...) \
         FILLP_LOG_IN(FILLP_DBG_LVL_BUTT, FILLP_DBG_SHOW_LEVEL, "F-SHOWLEVELBUTT", fmt, ##__VA_ARGS__)
-
-#ifdef FILLP_MGT_MSG_LOG
-#define FILLP_LOGMGTMSG(fmt, ...) FILLP_LOG_IN(FILLP_DBG_LVL_INFO, FILLP_DBG_LOG, "F-LOGMGTMSG", fmt, ##__VA_ARGS__)
-#endif
-
-FILLP_INT FillpApiSetMgtMsgLog(FILLP_INT enable);
 
 #ifdef __cplusplus
 }

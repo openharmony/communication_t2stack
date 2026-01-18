@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -98,6 +98,8 @@ void SkiplistDestroy(struct SkipList *list)
 
     (void)memset_s(list->hnode, sizeof(list->hnode), 0, sizeof(list->hnode));
     (void)memset_s(list->tnode, sizeof(list->tnode), 0, sizeof(list->tnode));
+
+    return;
 }
 
 /*******************************************************************************
@@ -198,7 +200,7 @@ static FILLP_INT SkiplistInsertAtMid(struct SkipList *list, void *item,
     (void)memset_s(prevRecord, sizeof(prevRecord), 0, sizeof(prevRecord));
 
     for (index = list->level - 1; index >= 0; index--) {
-        /* for each level, find the pre node of the point to insert */
+        /* fro each level, find the pre node of the point to insert */
         if (prev == FILLP_NULL_PTR) {
             next = list->hnode[index];
         } else {

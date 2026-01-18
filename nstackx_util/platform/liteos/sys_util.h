@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2021 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -48,9 +48,7 @@ extern "C" {
 #define INVALID_TID (pthread_t)(-1)
 
 #ifdef LWIP_LITEOS_A_COMPAT
-#ifndef atomic_t
 typedef uint64_t atomic_t;
-#endif
 
 #define NSTACKX_ATOM_FETCH(ptr) (*ptr)
 #define NSTACKX_ATOM_SET(ptr, i) ((*ptr) = (i))

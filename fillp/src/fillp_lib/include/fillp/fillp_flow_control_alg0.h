@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -16,6 +16,8 @@
 #ifndef FILLP_FC_ALG0_H
 #define FILLP_FC_ALG0_H
 
+#include "fillp/fillp_pcb.h"
+#include "fillp/fillp.h"
 #include "fillp_flow_control.h"
 
 
@@ -45,9 +47,9 @@ struct FillpFlowControlAlg0 {
     FILLP_UINT32 maxRateAllowed;
     FILLP_UINT8 fcState;             /* is rate detecting or stable */
     FILLP_UINT8 historyMaxRecvRateIndex;
+    struct FillpMaxRateSample historyMaxRecvRate; /* State for the parameterized max tracker */
     FILLP_UINT8 sendRateIncreaseGainIndex;
     FILLP_UINT32 packDeltaUsArrayIndex;
-    struct FillpMaxRateSample historyMaxRecvRate; /* State for the parameterized max tracker */
     FILLP_UINT32 packDeltaUsArray[FILLP_FC0_PACK_RECV_INTERVAL_SAMPLE_NUM];
 };
 
@@ -55,4 +57,4 @@ struct FillpFlowControlAlg0 {
 }
 #endif
 
-#endif /* FILLP_FC_ALG0_H */
+#endif

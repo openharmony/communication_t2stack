@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2021 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -23,6 +23,8 @@
 
 #define TAG "nStackXEpoll"
 
+#define BYTE_BITS_NUM 8
+#define TYPE_BITS_NUM(_type) (sizeof(_type) * BYTE_BITS_NUM)
 #ifndef LWIP_LITEOS_A_COMPAT
 #define IS_INVALID_SOCKET_DESC(fd) \
     (((fd) < LWIP_SOCKET_OFFSET) || ((fd) >= (LWIP_CONFIG_NUM_SOCKETS + LWIP_SOCKET_OFFSET)))
@@ -778,20 +780,21 @@ static void EpollSetFdHandle(EpollSet *epollSetPtr, void *param, int32_t fd)
 
 static void EpollSetTraverse(EpollSet *epollSetPtr, EpollTraverseFunc func, void *param)
 {
+    int32_t i, fd;
+
 #ifdef __LITEOS__
 #ifdef FDSETSAFESET
-    for (int32_t i = 0; i <= (epollSetPtr->maxfd - LWIP_SOCKET_OFFSET) / BYTE_BITS_NUM; i++) {
+    for (i = 0; i <= (epollSetPtr->maxfd - LWIP_SOCKET_OFFSET) / BYTE_BITS_NUM; i++) {
         uint8_t bits = epollSetPtr->exceptfds.fd_bits[i];
 #else
-    for (int32_t i = LWIP_SOCKET_OFFSET / NFDBITS; i <= epollSetPtr->maxfd / NFDBITS; i++) {
+    for (i = LWIP_SOCKET_OFFSET / NFDBITS; i <= epollSetPtr->maxfd / NFDBITS; i++) {
         unsigned long bits = epollSetPtr->exceptfds.fds_bits[i];
 #endif
 #else
-    for (int32_t i = LWIP_SOCKET_OFFSET / __NFDBITS; i <= epollSetPtr->maxfd / __NFDBITS; i++) {
+    for (i = LWIP_SOCKET_OFFSET / __NFDBITS; i <= epollSetPtr->maxfd / __NFDBITS; i++) {
         unsigned long bits = (unsigned long)(__FDS_BITS(&(epollSetPtr->exceptfds))[i]);
 #endif
         while (bits != 0) {
-            int32_t fd;
             int32_t bitIdx = RearZeroBitNum(bits);
 #ifdef __LITEOS__
 #ifdef FDSETSAFESET
@@ -828,11 +831,9 @@ int32_t EpollLoop(EpollDesc epollfd, int32_t timeout)
     }
 
     epollSetPtr = container_of(epollfd, EpollSet, epollfd);
-    if (memcpy_s(&readfds, sizeof(fd_set), &epollSetPtr->readfds, sizeof(fd_set)) != EOK ||
-        memcpy_s(&writefds, sizeof(fd_set), &epollSetPtr->writefds, sizeof(fd_set)) != EOK ||
-        memcpy_s(&exceptfds, sizeof(fd_set), &epollSetPtr->exceptfds, sizeof(fd_set)) != EOK) {
-        return NSTACKX_EFAILED;
-    }
+    memcpy_s(&readfds, sizeof(fd_set), &epollSetPtr->readfds, sizeof(fd_set));
+    memcpy_s(&writefds, sizeof(fd_set), &epollSetPtr->writefds, sizeof(fd_set));
+    memcpy_s(&exceptfds, sizeof(fd_set), &epollSetPtr->exceptfds, sizeof(fd_set));
 
     ret = select(epollSetPtr->maxfd + 1, &readfds, &writefds, &exceptfds, tvp);
     if (ret < 0) {

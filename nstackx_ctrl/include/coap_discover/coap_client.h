@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023 Huawei Device Co., Ltd.
+ * Copyright (C) 2021 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -16,7 +16,7 @@
 #ifndef COAP_CLIENT_H
 #define COAP_CLIENT_H
 
-#include <coap3/coap.h>
+#include <net.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -25,7 +25,6 @@ extern "C" {
 #define COAP_DEVICE_DISCOVER_URI "device_discover"
 #define COAP_SERVICE_DISCOVER_URI "service_discover"
 #define COAP_SERVICE_MSG_URI "service_msg"
-#define COAP_SERVICE_NOTIFICATION_URI "short_notification_message"
 
 typedef struct {
     coap_proto_t proto;
@@ -37,8 +36,8 @@ coap_session_t *CoapGetSession(coap_context_t *ctx, const char *localAddr, const
     const CoapServerParameter *coapServerParameter);
 
 int32_t CoapResolveAddress(const coap_str_const_t *server, struct sockaddr *dst);
-coap_response_t CoapMessageHandler(coap_session_t *session,
-    const coap_pdu_t *sent, const coap_pdu_t *received, const coap_mid_t id);
+void CoapMessageHandler(struct coap_context_t *ctx, coap_session_t *session,
+    coap_pdu_t *sent, coap_pdu_t *received, const coap_tid_t id);
 
 uint8_t IsCoapCtxEndpointSocket(const coap_context_t *ctx, int fd);
 

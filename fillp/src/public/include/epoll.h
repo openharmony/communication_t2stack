@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -24,7 +24,7 @@ extern "C" {
 
 /*
  * This structure is stored inside the "private_data" member of the file
- * structure and represent the main data structure for the eventpoll
+ * structure and rapresent the main data sructure for the eventpoll
  * interface.
  */
 struct EventPoll {
@@ -93,4 +93,5 @@ void EpollUpdateEpEvent(struct EpItem *epi);
 }
 #endif
 
-#endif /* FILLP_EPOLL_H */
+
+#endif

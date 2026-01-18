@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2021 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -13,23 +13,22 @@
  * limitations under the License.
  */
 
-#include "nstackx_dfile_log.h"
-#include <securec.h>
+#ifndef JSON_PAYLOAD_H
+#define JSON_PAYLOAD_H
 
-#define TAG "nStackXDFile"
+#include <stdint.h>
+#include "nstackx.h"
 
-static uint32_t g_dfileLogLevel = DFILE_LOG_LEVEL_INFO;
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-uint32_t GetDFileLogLevel(void)
-{
-    return g_dfileLogLevel;
+struct DeviceInfo;
+
+char *PrepareServiceDiscover(uint8_t isBroadcast);
+int32_t ParseServiceDiscover(const uint8_t *buf, struct DeviceInfo *deviceInfo, char **remoteUrlPtr);
+
+#ifdef __cplusplus
 }
-
-void SetDFileLogLevel(uint32_t logLevel)
-{
-    if (logLevel >= DFILE_LOG_LEVEL_END) {
-        DFILE_LOGE(TAG, "invalid loglevel:%u", logLevel);
-        return;
-    }
-    g_dfileLogLevel = logLevel;
-}
+#endif
+#endif /* #ifndef JSON_PAYLOAD_H */

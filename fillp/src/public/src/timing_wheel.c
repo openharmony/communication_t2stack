@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -42,7 +42,7 @@ static void FillpTimingWheelHandHourTick(struct FillpTimingWheel *wheel, FILLP_L
     FILLP_INT tickLoop = (FILLP_INT)UTILS_MIN(tickDiff, FILLP_TIMING_WHEEL_SLOT_NUM - 1);
     FILLP_INT tmpIndex = hourHand->curTick;
 
-    if ((tmpIndex >= FILLP_TIMING_WHEEL_SLOT_NUM) || (tmpIndex < 0)) {
+    if (wheel == FILLP_NULL_PTR || (tmpIndex >= FILLP_TIMING_WHEEL_SLOT_NUM) || (tmpIndex < 0)) {
         return;
     }
 
@@ -93,7 +93,7 @@ static void FillpTimingWheelHandMinTick(struct FillpTimingWheel *wheel, FILLP_LL
     FILLP_INT minTick = (FILLP_INT)(tickDiff + minHand->curTick);
     FILLP_INT hourTick = minTick / FILLP_TIMING_WHEEL_SLOT_NUM;
 
-    if ((tmpIndex >= FILLP_TIMING_WHEEL_SLOT_NUM) || (tmpIndex < 0)) {
+    if (wheel == FILLP_NULL_PTR || (tmpIndex >= FILLP_TIMING_WHEEL_SLOT_NUM) || (tmpIndex < 0)) {
         return;
     }
 
@@ -175,6 +175,7 @@ static void FillpInitTimingWheelTimeHand(struct FillpTimingWheelHand *hand, FILL
     hand->curTick = 0;
     hand->accuracy = accuracy;
     hand->curSlotTime = SYS_ARCH_GET_CUR_TIME_LONGLONG();
+    hand->curTick = 0;
     hand->handLength = accuracy * FILLP_TIMING_WHEEL_SLOT_NUM;
 
     for (i = 0; i < FILLP_TIMING_WHEEL_SLOT_NUM; i++) {

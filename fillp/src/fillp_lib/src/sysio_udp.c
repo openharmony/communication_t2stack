@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -12,6 +12,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+#ifdef FILLP_LINUX
+#include <errno.h>
+#endif
 
 #include "sysio.h"
 #include "sockets.h"
@@ -417,6 +421,8 @@ static void SysioAddPcbUdp(void *argSock, void *argPcb)
 {
     FILLP_UNUSED_PARA(argSock);
     FILLP_UNUSED_PARA(argPcb);
+
+    return;
 }
 
 
@@ -541,7 +547,7 @@ static void SysioConnectedUdp(void *argSock, void *argOsSock)
         FILLP_LOGDBG("UDP Connect success!!!!");
         udpSock->connected = FILLP_TRUE;
     } else {
-        FILLP_LOGERR("UDP Connect Failure !!!!");
+        FILLP_LOGINF("UDP Connect Failure !!!!");
     }
 }
 

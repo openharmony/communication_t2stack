@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2021 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -78,12 +78,12 @@ int32_t EpollLoop(EpollDesc epollfd, int32_t timeout)
 
     nfds = epoll_wait(epollfd, events, MAX_EPOLL_SIZE, timeout);
     if (nfds < 0) {
-        if (errno == EINTR) {
-            LOGD(TAG, "epoll_wait EINTR");
+        LOGE(TAG, "epoll_wait returned n=%d, error: %d", nfds, errno);
+        if (errno != EINTR) {
+            return NSTACKX_EFAILED;
+        } else {
             return NSTACKX_EINTR;
         }
-        LOGE(TAG, "epoll_wait returned n=%d, error: %d", nfds, errno);
-        return NSTACKX_EFAILED;
     }
 
     for (i = 0; i < nfds; i++) {

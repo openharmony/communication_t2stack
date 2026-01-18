@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -49,7 +49,7 @@ typedef struct FillpCookieContentSt {
     FILLP_UINT32 remoteRecvCache; /* client recv from server cache, same as server send cache */
     /* Serever port number. local address is not required is enough to identify the serever uniquily */
     FILLP_UINT16 srcPort;
-    FILLP_UINT16 addressType; /* Address type */
+    FILLP_UINT16 addresType; /* Address type */
 
     struct sockaddr_in6 remoteSockIpv6Addr;
 } FillpCookieContent;
@@ -71,7 +71,7 @@ typedef struct InnerfillpCookieContentCalculate {
     FILLP_UINT32 remoteRecvCache; /* client recv from server cache, same as server send cache */
     /* Serever port number. local address is not required is enough to identify the serever uniquily */
     FILLP_UINT16 srcPort;
-    FILLP_UINT16 addressType; /* Address type */
+    FILLP_UINT16 addresType; /* Address type */
 
     struct sockaddr_in6 remoteSockIpv6Addr;
     struct sockaddr_in6 localSockIpv6Addr;

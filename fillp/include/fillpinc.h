@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -15,6 +15,7 @@
 
 #ifndef FILLP_INC_H
 #define FILLP_INC_H
+#include "fillptypes.h"
 #include "fillpcallbacks.h"
 
 #ifdef __cplusplus
@@ -86,7 +87,7 @@ extern FILLP_INT DLL_API FtSend(FILLP_INT fd, FILLP_CONST void *data, size_t siz
  * @param[in] data      Indicates a data pointer.
  * @param[in] size      Indicates the size of the message.
  * @param[in] flag      Indicates the status.
- * @param[in] frame     Indicates frame information (including the frame type I or P, etc.) of the video frame.
+ * @param[in] frame     Indicates frame infomation(including the frame type I or P, etc.) of the video frame.
  * @return On success, returns 0
  * On failure, returns -1. You can retrieve the last error number of the socket by calling the FtGetErrno() API.
  */
@@ -276,7 +277,7 @@ extern FILLP_INT DLL_API FtListen(FILLP_INT fd, FILLP_INT backLog);
    <tr><th>Errors                     <th>Error Message String
    <tr><td>FILLP_EINVAL  <td>Invalid argument epNum passed.
    <tr><td>FILLP_ENOMEM  <td>There was insufficient memory to create epoll object.
-   <tr><td>FILLP_EFAULT  <td>Error occurred due to semaphore or atomic operation.
+   <tr><td>FILLP_EFAULT  <td>Errror occurred due to semaphore or atomic operation.
 
    </table>
  */
@@ -341,7 +342,7 @@ extern FILLP_INT DLL_API FtEpollWait(FILLP_INT epFd, struct SpungeEpollEvent *ev
  * @param[in] cmd   Indicates the command to perform on the socket s.
  * @param[in] val   Indicates the flag value used to set the blocking and non blocking socket.
  * @return
- * Upon success, returns the value which depends on command(cmd), or returns error codes on failure.
+ * Upon sucesss, returns the value which depends on command(cmd), or returns error codes on failure.
  * @note
  * This API must be used only in the Linux platform.
  */
@@ -382,7 +383,7 @@ extern FILLP_INT DLL_API FtIoctlSocket(FILLP_INT fd, FILLP_SLONG cmd, FILLP_CONS
 #define FILLP_CONFIG_ALL_SOCKET ((FILLP_UINT16)FILLP_MAX_UNSHORT_VAL)
 
 /**
- * TRCE/ INTERFACE DEFINITION This structure represents the trace direction.
+ * TRCE/ INTERFACE DEFINATION This structure represents the trace direction.
  */
 typedef struct FillpTraceDescriptStruct {
     FILLP_UINT8 traceDirection; /* This is of type TYPE FillpTraceDirectEn. */
@@ -396,11 +397,11 @@ typedef struct FillpTraceDescriptStruct {
 #define FILLP_TRACE_DESC_INIT(dir) \
     { \
         (dir), \
-        {0}, \
+        { 0 }, \
     }
 
 /**
- * TRCE/ INTERFACE DEFINITION This enum represents the trace direction.
+ * TRCE/ INTERFACE DEFINATION This enum represents the trace direction.
  */
 typedef enum FillpTraceDirectEnum {
     FILLP_TRACE_DIRECT_RECV = 0, /* Indicates FillP trace receive. */
@@ -411,7 +412,7 @@ typedef enum FillpTraceDirectEnum {
 
 
 /**
- * TRCE/ INTERFACE DEFINITION This enum represents type of FillP trace.
+ * TRCE/ INTERFACE DEFINATION This enum represents type of FillP trace.
  */
 typedef enum FillpTraceTypeEnum {
     FILLP_TRACE_DIRECT_DISABLE = 0,         /* Indicates that FillP/VTP trace is disabled. */
@@ -474,7 +475,7 @@ typedef enum FillpDebugCmdEnum {
     /* Provides the output information  about all other debug commands that you can use. */
     FILLP_DBGCMD_HELP,
     /* Sets the level of debug information which stack provides in the callback. Refer FillpDebugLevel for
-     * different levels. If level is set as FILLP_DBG_LVL_ERROR only error info is provided to user, if level is set as
+     * differnt levels. If level is set as FILLP_DBG_LVL_ERROR only error info is provided to user, if level is set as
      * FILLP_DBG_LVL_WARNING both warning and error info are provided to the user. */
     FILLP_DBGCMD_SET_PRINT_LEVEL,
     /* Shows the current dynamically configured configuration parameters at application level. */
@@ -723,21 +724,21 @@ typedef enum FillpConfigAppListEnum {
 } FtConfigItemList;
 
 typedef struct FillpAppFcStasticsStruct {
-    /* Indicates the period trans delay, uint:ms */
+    /* Indicates the peroid trans delay, uint:ms */
     FILLP_UINT32 periodRtt;
-    /* Indicates the period pkt loss rate on recv side, precision xx% lost rate is 1%, then 1 will returned */
+    /* Indicates the peroid pkt loss rate on recv side, precision xx% lost rate is 1%, then 1 will returned */
     FILLP_UINT32 periodRecvPktLoss;
-    /* Indicates the period recv rate, uint:kbps */
+    /* Indicates the peroid recv rate, uint:kbps */
     FILLP_UINT32 periodRecvRate;
-    /* Indicates the period pkt loss rate on recv side, precision xx.xx%, lost rate is 1.10%, then 110 will returned */
+    /* Indicates the peroid pkt loss rate on recv side, precision xx.xx%, lost rate is 1.10%, then 110 will returned */
     FILLP_UINT32 periodRecvPktLossHighPrecision;
-    /* Indicates the period pkt loss rate on send side, precision xx.xx%, lost rate is 1.10%, then 110 will returned */
+    /* Indicates the peroid pkt loss rate on send side, precision xx.xx%, lost rate is 1.10%, then 110 will returned */
     FILLP_UINT32 periodSendPktLossHighPrecision;
-    /* Indicates the period recv rate, uint:bps */
+    /* Indicates the peroid recv rate, uint:bps */
     FILLP_ULLONG periodRecvRateBps;
-    /* Indicates the period send rate, uint:bps */
+    /* Indicates the peroid send rate, uint:bps */
     FILLP_ULLONG periodSendRateBps;
-    /* Indicates the period send rate, uint:ms */
+    /* Indicates the peroid send rate, uint:ms */
     FILLP_LLONG jitter;
 } FillpAppFcStasticsSt;
 
@@ -1364,30 +1365,6 @@ struct FillpCurrentSendCacheInf {
 
 /**
  * @ingroup fillpevt
- * @brief  Register the event callback function on the socket.
- *
- * @param[in] fd          Indicates a socket created by the FtSocket API.
- * @param[in] evtCbkFunc  Pointer to event callback function FillpEvtCbkFunc.
- * @return
- * On Success : returns 0
- * On Failure : returns -1
- */
-FILLP_INT DLL_API FtApiRegEventCallbackFunc(IN FILLP_INT fd, IN FillpEvtCbkFunc evtCbkFunc);
-
-/**
- * @ingroup fillpevt
- * @brief  unregister the event callback function on the socket.
- *
- * @param[in] fd          Indicates a socket created by the FtSocket API.
- * @param[in] evtCbkFunc  Pointer to event callback function FillpEvtCbkFunc.
- * @return
- * On Success : returns 0
- * On Failure : returns -1
- */
-FILLP_INT DLL_API FtApiUnregEventCallbackFunc(IN FILLP_INT fd, IN FillpEvtCbkFunc evtCbkFunc);
-
-/**
- * @ingroup fillpevt
  * @brief  Get the event info on the socket.
  *
  * @param[in]     fd    Indicates a socket created by the FtSocket API.
@@ -1397,33 +1374,6 @@ FILLP_INT DLL_API FtApiUnregEventCallbackFunc(IN FILLP_INT fd, IN FillpEvtCbkFun
  * On Failure : returns -1
  */
 FILLP_INT DLL_API FtApiEventInfoGet(IN FILLP_INT fd, IO FtEventCbkInfo *info);
-
-/**
- * @ingroup fillpevt
- * @brief  register dfx event callback function
- *
- * @param[in] softObj   any useful message to evtCb
- * @param[in]    func   event callback function
- * @return
- * On Success : returns 0
- * On Failure : returns -1
- */
-extern FILLP_INT DLL_API FtSetDfxEventCb(void *softObj, FillpDfxEventCb evtCb);
-
-/**
- * @ingroup fillpevt
- * @brief   deal with HiDumper cmd
- *
- * @param[in]    argc   arg number
- * @param[in]    argv   arg value
- * @param[in] softObj   any useful message to dump
- * @param[in]    dump   function to printf data
- * @return
- * On Success : returns 0
- * On Failure : returns -1
- */
-extern FILLP_INT DLL_API FtDfxHiDumper(FILLP_UINT32 argc, const FILLP_CHAR **argv,
-    void *softObj, FillpDfxDumpFunc dump);
 
 #pragma pack(pop)
 

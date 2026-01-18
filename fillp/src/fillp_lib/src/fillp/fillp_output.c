@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -46,10 +46,10 @@ static void FillpMoveRedundantItemToUnrecvList(struct FillpPcb *pcb)
         }
         item = (struct FillpPcbItem *)SkipListPopValue(&sendPcb->redunList);
     }
+    return;
 }
 
-IGNORE_OVERFLOW static struct FillpPcbItem *FillpGetSendItem(struct FillpSendPcb *sendPcb,
-    struct FillpPcb *pcb)
+static struct FillpPcbItem *FillpGetSendItem(struct FillpSendPcb *sendPcb, struct FillpPcb *pcb)
 {
     struct FillpPcbItem *item = (struct FillpPcbItem *)SkipListPopValue(&sendPcb->unrecvList);
     if (item != FILLP_NULL_PTR) {
@@ -87,13 +87,13 @@ static FILLP_BOOL FillpIsAskMoreBuf(struct FillpSendPcb *sendPcb, struct FillpPc
     if (askMoreRet <= 0) {
         return FILLP_FALSE;
     }
-    
+    int inx = 0;
     struct FtSocket *sock = FILLP_GET_SOCKET(pcb);
+    for (; inx < askMoreRet; inx++) {
 #ifdef SOCK_SEND_SEM
-    for (int inx = 0; inx < askMoreRet; inx++) {
         (void)SYS_ARCH_SEM_POST(&sendPcb->send_sem);
-    }
 #endif /* SOCK_SEND_SEM */
+    }
     (void)SYS_ARCH_ATOMIC_INC(&sock->sendEventCount, askMoreRet);
     sendPcb->curItemCount = (FILLP_UINT32)DYMP_GET_CUR_SIZE(sendPcb->itemPool);
     FILLP_LOGDBG("Ask more buffer for send success, fillp_sock_id:%d", sock->index);
@@ -232,6 +232,7 @@ static void FillpBuildPktDataOptions(FILLP_CONST struct FillpPcb *pcb,
 
     *(FILLP_UINT16 *)(dataOptionAddr) = FILLP_HTONS(offset);
     FILLP_UNUSED_PARA(pcb);
+    return;
 }
 
 static void FillpBuildDataPkt(struct FillpPcb *pcb, struct FillpPcbItem *item)
@@ -274,6 +275,8 @@ static void FillpBuildDataPkt(struct FillpPcb *pcb, struct FillpPcbItem *item)
 
     FILLP_LM_TRACE_SEND_MSG(sock->traceFlag, FILLP_TRACE_DIRECT_NETWORK, sock->traceHandle, FILLP_HLEN, sock->index,
         fillpTrcDesc, (FILLP_CHAR *)pktHdr);
+
+    return;
 }
 
 static void UpdateStatisticsWhenSendOne(struct FillpStatisticsPcb *stats, FILLP_UINT32 bufLen)
@@ -284,7 +287,8 @@ static void UpdateStatisticsWhenSendOne(struct FillpStatisticsPcb *stats, FILLP_
     stats->traffic.totalSendBytes += bufLen;
 
     stats->appFcStastics.periodSendPkts++;
-    stats->appFcStastics.periodSendBits += (FILLP_ULLONG)FILLP_FC_VAL_IN_BITS(((FILLP_ULLONG)bufLen));
+    stats->appFcStastics.periodSendBits =
+    stats->appFcStastics.periodSendBits + (FILLP_ULLONG)FILLP_FC_VAL_IN_BITS(((FILLP_ULLONG)bufLen));
 }
 
 static FillpErrorType FillpAddtoListBySeqNum(struct Hlist *list, struct FillpPcbItem *item)
@@ -345,6 +349,8 @@ static void FillpAddToPktSeqHash(FILLP_CONST struct FillpPcb *pcb, struct FillpP
 {
     struct Hlist *list = &pcb->send.pktSeqMap.hashMap[item->pktNum & pcb->send.pktSeqMap.hashModSize];
     HlistAddTail(list, &item->pktSeqMapNode);
+
+    return;
 }
 
 static FILLP_INT FillpItemRetrans(struct FillpPcbItem *item, struct FillpPcb *fpcb, struct FillpSendPcb *sendPcb)
@@ -444,11 +450,13 @@ void FillpSendAdhocpackToDetectRtt(struct FillpPcb *pcb)
     pack.flag |= FILLP_PACK_FLAG_REQURE_RTT;
     pack.pktLoss = 0;
     pack.reserved.rtt =
-        (FILLP_UINT32)((FILLP_ULLONG)curTime & 0xFFFFFFFF); /* rtt isn't much large, so only use the low 32bit is ok */
+        (FILLP_UINT32)((FILLP_ULLONG)curTime & 0xFFFFFFFF); /* rtt isn't much large, so olny use the low 32bit is ok */
     pack.lostSeq = pcb->recv.seqNum;
 
     ftSock = FILLP_GET_SOCKET(pcb);
     FillpBuildAndSendPack(pcb, ftSock, &pack, sizeof(struct FillpPktPack) - FILLP_HLEN);
+
+    return;
 }
 
 static void FillpSetSimplePack(FILLP_CONST struct FillpPcb *pcb, struct FillpPktPack *pack,
@@ -482,7 +490,7 @@ static void FillpSetSimplePack(FILLP_CONST struct FillpPcb *pcb, struct FillpPkt
     }
 }
 
-static FILLP_BOOL FillpSendPack(struct FillpPcb *pcb, struct FillpPktPack *pack)
+FILLP_BOOL FillpSendPack(struct FillpPcb *pcb, struct FillpPktPack *pack)
 {
     struct FillpPcbItem *item = FILLP_NULL_PTR;
     struct SkipListNode *node = FILLP_NULL_PTR;

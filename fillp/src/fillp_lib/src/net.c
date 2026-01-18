@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -29,19 +29,20 @@ static void NetconnFreeOsSocket(struct SockOsSocket *osSock, struct SpungeInstan
     if ((osSock == FILLP_NULL_PTR) || (curInst == FILLP_NULL_PTR)) {
         /* No need to prin the error log in this case, because the param 'ftSock->osSocket'
            can be set to NULL only in this function below, so printing log here is
-           not useful
+           not usefull
         */
         return;
     }
 
-    osSock->reference--;
-    if (osSock->reference <= 0) {
-        if (OS_SOCK_OPS_FUNC_VALID(osSock, destroySysIoSocket)) {
-            (void)osSock->ioSock->ops->destroySysIoSocket(osSock->ioSock);
+    osSock->refrence--;
+    if (osSock->refrence <= 0) {
+        if (OS_SOCK_OPS_FUNC_VALID(osSock, destorySysIoSocket)) {
+            (void)osSock->ioSock->ops->destorySysIoSocket(osSock->ioSock);
         }
         HlistDelete(&curInst->osSockist, &osSock->osListNode);
         SpungeFree(osSock, SPUNGE_ALLOC_TYPE_CALLOC);
     }
+    return;
 }
 
 
@@ -49,6 +50,7 @@ void NetconnSetSock(struct FtSocket *sock, struct FtNetconn *conn)
 {
     sock->netconn = conn;
     conn->sock = (void *)sock;
+    return;
 }
 
 void NetconnSetSendCacheSize(struct FtNetconn *conn, FILLP_UINT32 cacheSize)
@@ -124,6 +126,7 @@ struct FtNetconn *FillpNetconnAlloc(FILLP_UINT16 domain, struct SpungeInstance *
     conn->pcb = SpungePcbNew(conn, inst);
     if (conn->pcb == FILLP_NULL_PTR) {
         FILLP_LOGERR("alloc spunge_pcb fail");
+
         DympFree(conn);
         return FILLP_NULL_PTR;
     }
@@ -150,7 +153,8 @@ void FillpNetconnDestroy(struct FtNetconn *conn)
 {
     int i;
     if (conn == FILLP_NULL_PTR) {
-        FILLP_LOGERR("FillpNetconnDestroy: Invalid paramaters passed");
+        FILLP_LOGERR("FillpNetconnDestroy: Invalid paramaters passed\r\n");
+
         return;
     }
 
@@ -169,6 +173,7 @@ void FillpNetconnDestroy(struct FtNetconn *conn)
     }
 
     DympFree(conn);
+    return;
 }
 
 static FILLP_BOOL FillpErrIsFatal(FILLP_INT err)
@@ -266,6 +271,7 @@ void FillpNetconnSetState(struct FtNetconn *conn, FILLP_UINT8 state)
             SpungeTokenBucketDelFpcb(&conn->pcb->fpcb);
         }
     }
+    return;
 }
 
 #ifdef __cplusplus

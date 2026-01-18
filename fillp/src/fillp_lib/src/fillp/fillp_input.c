@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -21,8 +21,6 @@
 #include "net.h"
 #include "fillp_common.h"
 #include "fillp_output.h"
-#include "fillp_mgt_msg_log.h"
-#include "fillp_dfx.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -62,7 +60,7 @@ static void FillpChangePackInteval(struct FillpPcb *pcb)
     if (pcb->packState == FILLP_PACK_STATE_KEEP_ALIVE ||
         (((struct FtSocket *)conn->sock)->resConf.common.enlargePackIntervalFlag == FILLP_TRUE &&
         pcb->packTimerNode.interval != pcb->statistics.pack.packIntervalBackup)) {
-        FILLP_LOGDBG("FillpDataInput, change pack timer to working state with a new time interval %u, old %u",
+        FILLP_LOGINF("FillpDataInput, change pack timer to working state with a new time interval %u, old %u",
             pcb->statistics.pack.packIntervalBackup, pcb->statistics.pack.packInterval);
         pcb->statistics.pack.packInterval = pcb->statistics.pack.packIntervalBackup;
         FillpDisablePackTimer(pcb);
@@ -70,6 +68,7 @@ static void FillpChangePackInteval(struct FillpPcb *pcb)
         FillpEnablePackTimer(pcb);
         pcb->packState = FILLP_PACK_STATE_NORMAL;
     }
+    return;
 }
 
 static FILLP_INT FillpProcessDataOptions(FillpDataOption *dataOption, struct FillpPcb *pcb, struct FillpPcbItem *item)
@@ -159,6 +158,9 @@ static void FillpProcessItemData(struct FillpPcb *pcb, struct FillpPcbItem *item
         return;
     }
     if (!FillpNumIsbigger(item->seqNum, pcb->recv.seqNum)) {
+        FILLP_LOGDBG("fillp_sock_id:%d seq Recved before: start %u, end: %u, pktNum: %u", FILLP_GET_SOCKET(pcb)->index,
+            pcb->recv.seqNum, item->seqNum, item->pktNum);
+
         FillpFcDataInput(pcb, pktHdr);
         FillpFreeBufItem(item);
         FillpFcRecvDropOne(pcb);
@@ -183,9 +185,10 @@ static void FillpProcessItemData(struct FillpPcb *pcb, struct FillpPcbItem *item
     } else {
         FillpDataToStack(pcb, item);
     }
+    return;
 }
 
-IGNORE_OVERFLOW static void FillpDataInput(struct FillpPcb *pcb, struct FillpPcbItem *item)
+static void FillpDataInput(struct FillpPcb *pcb, struct FillpPcbItem *item)
 {
     FILLP_CONST struct FillpPktHead *pktHdr = (struct FillpPktHead *)(void *)item->buf.p;
     FILLP_UINT32 privRecvCacheSize = 0;
@@ -198,7 +201,7 @@ IGNORE_OVERFLOW static void FillpDataInput(struct FillpPcb *pcb, struct FillpPcb
     item->dataLen = pktHdr->dataLen;
 
     if (FillpNumIsbigger(item->seqNum, (pcb->recv.seqNum + pcb->recv.pktRecvCache + privRecvCacheSize))) {
-        FILLP_LOGWAR("fillp_sock_id:%d, seqnum received = %u from the peer is not in the send window range = %u",
+        FILLP_LOGWAR("fillp_sock_id:%d, seqnum recieved = %u from the peer is not in the send window range = %u",
             FILLP_GET_SOCKET(pcb)->index, item->seqNum,
             (pcb->recv.seqNum + pcb->recv.pktRecvCache + privRecvCacheSize));
 
@@ -253,7 +256,14 @@ static void ProcessPcbItem(struct FillpPcb *pcb, FILLP_CONST struct NetBuf *buf,
             item = (struct FillpPcbItem *)node->item;
             lostSeqNum = (item->seqNum - item->dataLen);
         }
+        FILLP_LOGDTL("can not alloc recv bufer ,drop it !!!!!,fillp_sock_id:%d, seqNum:%u, pktNum:%u, "
+            "recv.seqNum:%u, lostSeqNum:%u, recvList:%u, recvBoxPlaceInOrder:%u, recvBox:%lu, "
+            "mpRecvSize:%u, curItemCount:%u",
+            FILLP_GET_SOCKET(pcb)->index, pktHdr->seqNum, pktHdr->pktNum, pcb->recv.seqNum, lostSeqNum,
+            pcb->recv.recvList.nodeNum, pcb->recv.recvBoxPlaceInOrder.nodeNum,
+            FillpQueueValidOnes(pcb->recv.recvBox), pcb->mpRecvSize, pcb->recv.curItemCount);
     }
+    return;
 }
 
 static void FillpHdlDataInput(struct FillpPcb *pcb, FILLP_CONST struct NetBuf *buf)
@@ -263,8 +273,7 @@ static void FillpHdlDataInput(struct FillpPcb *pcb, FILLP_CONST struct NetBuf *b
     int netconnState = NETCONN_GET_STATE(FILLP_GET_CONN(pcb));
     if ((netconnState != CONN_STATE_CLOSING) && (netconnState != CONN_STATE_CONNECTED)) {
         // Drop it silently
-        FILLP_LOGDBG("not connected or connecting, drop it !!!!!");
-        FillpDfxPktNotify(FILLP_GET_SOCKET(pcb)->index, FILLP_DFX_PKT_PARSE_FAIL, 1U);
+        FILLP_LOGDBG("not connected or connecting ,drop it !!!!!");
         return;
     }
 
@@ -312,8 +321,8 @@ static int FillpCheckNackPacket(FILLP_CONST struct FillpPcb *pcb, FILLP_CONST st
     return 0;
 }
 
-IGNORE_OVERFLOW static int FillpCheckNackSeq(FILLP_CONST struct FillpPcb *pcb,
-    FILLP_CONST struct FillpPktHead *pktHdr, FILLP_CONST struct FillpSeqPktNum *seqPktNum)
+static int FillpCheckNackSeq(FILLP_CONST struct FillpPcb *pcb, FILLP_CONST struct FillpPktHead *pktHdr,
+    FILLP_CONST struct FillpSeqPktNum *seqPktNum)
 {
     if (FillpNumIsbigger(pktHdr->seqNum, pcb->send.seqNum) ||
         FillpNumIsbigger(pcb->send.seqNum, (pktHdr->seqNum + pcb->send.pktSendCache))) {
@@ -349,6 +358,7 @@ static void FillpNackInputTrace(FILLP_CONST struct FtSocket *sock, FILLP_CONST s
         FILLP_LM_FILLPMSGTRACE_OUTPUT_WITHOUT_FT_TRACE_ENABLE_FLAG(FILLP_TRACE_DIRECT_NETWORK, sock->traceHandle,
             sizeof(struct FillpPktNack), sock->index, fillpTrcDesc, (FILLP_CHAR *)(&tmpNack));
     }
+    return;
 }
 
 static FILLP_INT FillpGetSeqFromPktSeqHash(FILLP_UINT32 pktNum, FILLP_CONST struct FillpHashLlist *mapList,
@@ -437,7 +447,6 @@ static void FillpNackInput(struct FillpPcb *pcb, FILLP_CONST struct NetBuf *p)
     struct FillpSeqPktNum seqPktNum;
 
     if (FillpCheckNackPacket(pcb, p) != 0) {
-        FillpDfxPktNotify(ftSock->index, FILLP_DFX_PKT_PARSE_FAIL, 1U);
         return;
     }
 
@@ -485,13 +494,14 @@ static void FillpNackInput(struct FillpPcb *pcb, FILLP_CONST struct NetBuf *p)
     }
     pcb->statistics.debugPcb.nackRcv++;
     FillpFcNackInput(pcb, nack);
+    return;
 }
 
 static FILLP_BOOL FillpCheckPackInput(struct FillpPcb *pcb, FILLP_CONST struct NetBuf *p)
 {
     FILLP_UINT8 connState = FILLP_GET_CONN_STATE(pcb);
     if ((connState != CONN_STATE_CLOSING) && (connState != CONN_STATE_CONNECTED)) {
-        /* Changed the log level from WAR to INFO, because peer would have sent the outstanding
+        /* Changed the log level from WAR to INFO, becasue peer would have sent the outstanding
             packs at the time when local side connection is closed.
         */
         FILLP_LOGINF("netconn state not correct for PACK,state:%hhu", connState);
@@ -555,10 +565,12 @@ static void FillpPackInputSendMsgTrace(FILLP_CONST struct FillpPcb *pcb, FILLP_C
         FILLP_LM_FILLPMSGTRACE_OUTPUT_WITHOUT_FT_TRACE_ENABLE_FLAG(FILLP_TRACE_DIRECT_NETWORK, ftSock->traceHandle,
             (FILLP_UINT32)traceMsgLen, FILLP_GET_SOCKET(pcb)->index, fillpTrcDesc, (FILLP_CHAR *)(&tmpPack));
     }
+
+    return;
 }
 
-IGNORE_OVERFLOW static FILLP_BOOL FillpCheckPackNumber(struct FillpPcb *pcb,
-    struct FillpPktPack *pack, FILLP_UINT32 ackSeqNum, FILLP_UINT32 lostSeqNum)
+static FILLP_BOOL FillpCheckPackNumber(struct FillpPcb *pcb, struct FillpPktPack *pack,
+    FILLP_UINT32 ackSeqNum, FILLP_UINT32 lostSeqNum)
 {
     struct FillpPktHead *pktHdr = (struct FillpPktHead *)pack->head;
     if (FillpNumIsbigger(ackSeqNum, pcb->send.seqNum) ||
@@ -587,6 +599,13 @@ IGNORE_OVERFLOW static FILLP_BOOL FillpCheckPackNumber(struct FillpPcb *pcb,
         FILLP_NTOHL(pack->rate), pktHdr->seqNum, pktHdr->pktNum,
         FILLP_NTOHS(pack->flag), FILLP_NTOHL(pack->oppositeSetRate), lostSeqNum);
 
+    FILLP_LOGDTL("fillp_sock_id:%d, unSendList:%u,unackList:%u,unrecvList:%u, itemWaitTokenLists:%u, "
+        "total:%u,curMemSize:%u,maxACKSeq:%u,ackSeqNum:%u,curSeq:%u",
+        FILLP_GET_SOCKET(pcb)->index, pcb->send.unSendList.size, pcb->send.unackList.count,
+        pcb->send.unrecvList.nodeNum, pcb->send.itemWaitTokenLists.nodeNum,
+        (FILLP_UINT32)(pcb->send.unSendList.size + pcb->send.redunList.nodeNum + pcb->send.unackList.count +
+        pcb->send.unrecvList.nodeNum + pcb->send.itemWaitTokenLists.nodeNum),
+        pcb->send.curItemCount, pcb->send.maxAckNumFromReceiver, pcb->send.ackSeqNum, pcb->send.seqNum);
     return FILLP_TRUE;
 }
 
@@ -615,7 +634,7 @@ static void FillpHandleAdhocpackFlag(struct FillpPcb *pcb, struct FillpPktPack *
         FILLP_LLONG curTime = SYS_ARCH_GET_CUR_TIME_LONGLONG();
 
         pack->reserved.rtt = FILLP_NTOHL(pack->reserved.rtt);
-        /* rtt isn't much large, so only use the low 32bit is ok */
+        /* rtt isn't much large, so olny use the low 32bit is ok */
         pcb->statistics.appFcStastics.periodRtt =
             FILLP_UTILS_US2MS(((FILLP_UINT32)((FILLP_ULLONG)curTime & 0xFFFFFFFF) - pack->reserved.rtt));
         FILLP_LOGDBG("fillp_sock_id:%d, rtt = %u", FILLP_GET_SOCKET(pcb)->index,
@@ -653,7 +672,7 @@ static void FillpHdlAdhocpack(struct FillpPcb *pcb, struct FillpPktPack *pack)
 static void FillpChangePackInterval(struct FillpPcb *pcb, FILLP_CONST struct FtSocket *sock,
     FILLP_CONST struct FillpPktPack *pack)
 {
-    // It need to cancel if receiving any data from peer
+    // It need to cancle if receiving any data from peer
     if (sock->resConf.common.enlargePackIntervalFlag && (pack->flag & FILLP_PACK_FLAG_NO_DATA_SEND)) {
         pcb->statistics.pack.packInterval = FILLP_NODATARECV_PACK_INTERVAL;
     } else {
@@ -693,7 +712,7 @@ static FILLP_INT FillpHandlePackFlag(struct FillpPcb *pcb, struct FillpPktPack *
 
 static void MoveUnackToUnrecvByPackInfo(struct FillpPcb *pcb, FILLP_UINT32 ackSeqNum, FILLP_UINT32 lostSeqNum)
 {
-    /* when FILLP_RETRANSMIT_CMP_TIME_EXT is 0, packet item resend is controlled by pack cnt with same
+    /* when FILLP_RETRANSMIT_CMP_TIME_EXT is 0, packet item resend is controled by pack cnt with same
      * ackSeqNum */
     if (g_resource.retransmitCmpTime) {
         FillpMoveUnackToUnrecv(ackSeqNum, lostSeqNum, pcb, FILLP_TRUE);
@@ -726,7 +745,7 @@ static void FillpPackInputLog(FILLP_CONST struct FillpPcb *pcb)
         pcb->statistics.traffic.totalSend - pcb->statistics.traffic.totalSendFailed,
         pcb->statistics.traffic.totalSendBytes, pcb->statistics.traffic.totalRetryed);
 
-    FILLP_LOGDBG("fillp_sock_id:%d packIntervalSendPkt:%u,total_recv_bytes:%u,self_period_recv_rate:%u,"
+    FILLP_LOGDBG("fillp_sock_id:%d packIntervalSendPkt:%u,total_recv_bytes:%u,self_peroid_recv_rate:%u,"
         "last_Pack_input_time:%lld",
         FILLP_GET_SOCKET(pcb)->index, pcb->statistics.debugPcb.packIntervalSendPkt,
         pcb->statistics.traffic.totalRecved, pcb->statistics.pack.periodRecvRate,
@@ -787,6 +806,7 @@ static void FillpPackInput(struct FillpPcb *pcb, FILLP_CONST struct NetBuf *p)
 
     FillpPackInputLog(pcb);
     FillpFcPackInput(pcb, pack);
+    return;
 }
 
 static void FillpHdlConnect(struct FillpPcb *pcb, FILLP_CONST struct NetBuf *buf, struct SpungeInstance *inst,
@@ -904,14 +924,11 @@ void FillpDoInput(struct FillpPcb *pcb, FILLP_CONST struct NetBuf *buf, struct S
     head->pktNum = FILLP_NTOHL(head->pktNum);
     head->seqNum = FILLP_NTOHL(head->seqNum);
 
-    FILLP_PKT_SIMPLE_LOG(ftSock->index, head, FILLP_DIRECTION_RX);
-
     if (buf->len > (FILLP_INT)pcb->pktSize) {
         /* format specifier %zu is used for size_t variable */
         FILLP_LOGINF("FillpDoInput: recv buffer length incorrect, dataLen = %d is greater than pktSize = %zu,"
                      "flag:%u, pktNum:%u, seqNum:%u",
                      buf->len, pcb->pktSize, head->flag, head->pktNum, head->seqNum);
-        FillpDfxPktNotify(ftSock->index, FILLP_DFX_PKT_PARSE_FAIL, 1U);
         return;
     }
 
@@ -919,10 +936,12 @@ void FillpDoInput(struct FillpPcb *pcb, FILLP_CONST struct NetBuf *buf, struct S
         FILLP_LOGINF("FillpDoInput: fillp_sock_id:%d protocol head incorrect. "
                      "dataLen = %u greater than buflen = %d, flag:%u, pktNum:%u, seqNum:%u",
                      ftSock->index, head->dataLen, buf->len, head->flag, head->pktNum, head->seqNum);
-        FillpDfxPktNotify(ftSock->index, FILLP_DFX_PKT_PARSE_FAIL, 1U);
+
         return;
     }
     FillpDoInputPktType(pcb, buf, inst, (FILLP_UINT16)FILLP_PKT_GET_TYPE(head->flag));
+
+    return;
 }
 
 #ifdef __cplusplus

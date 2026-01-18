@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -16,7 +16,12 @@
 #ifndef SPUNGE_H
 #define SPUNGE_H
 #include "sockets.h"
+#include "mem_pool.h"
+#include "queue.h"
+#include "hlist.h"
+#include "log.h"
 #include "dympool.h"
+#include "fillp_cookie.h"
 
 #ifdef __cplusplus
 extern "C" {

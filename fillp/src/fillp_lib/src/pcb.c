@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022 Huawei Device Co., Ltd.
+ * Copyright (C) 2022 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -23,7 +23,6 @@
 #include "res.h"
 #include "fillp_algorithm.h"
 #include "spunge.h"
-#include "fillp_mgt_msg_log.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,7 +34,7 @@ static FILLP_INT SpungePcbRecv(void *argConn, void **buf, FILLP_INT count)
     struct FtSocket *sock = (struct FtSocket *)conn->sock;
     FillpErrorType err = FillpQueuePush(conn->pcb->fpcb.recv.recvBox, buf, FILLP_TRUE, (FILLP_UINT)count);
     if (err) {
-        FILLP_LOGERR("SpungePcbRecv: FillpQueuePush failed. sockId =%d", sock->index);
+        FILLP_LOGERR("SpungePcbRecv: FillpQueuePush failed. sockId =%d \r\n", sock->index);
 
         return err;
     }
@@ -65,9 +64,6 @@ static FILLP_INT SpungePcbSend(void *arg, FILLP_CONST char *buf,
     if (!OS_SOCK_OPS_FUNC_VALID(osSock, send)) {
         return -1;
     }
-
-    FILLP_PKT_SIMPLE_LOG(((struct FtSocket *)conn->sock)->index,
-        (FILLP_CONST struct FillpPktHead *)buf, FILLP_DIRECTION_TX);
 
     if (size != (FILLP_INT) osSock->ioSock->ops->send(osSock->ioSock,
                                                       buf,
@@ -295,7 +291,8 @@ void SpungePcbRemove(struct SpungePcb *pcb)
     struct FtNetconn *conn = FILLP_NULL_PTR;
     struct SockOsSocket *osSock = FILLP_NULL_PTR;
     if (pcb == FILLP_NULL_PTR) {
-        FILLP_LOGERR("SpungePcbRemove: Invalid parameters passed");
+        FILLP_LOGERR("SpungePcbRemove: Invalid parameters passed \r\n");
+
         return;
     }
 
@@ -311,6 +308,8 @@ void SpungePcbRemove(struct SpungePcb *pcb)
     }
 
     SpungeFree(pcb, SPUNGE_ALLOC_TYPE_CALLOC);
+
+    return;
 }
 
 #ifdef __cplusplus

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2021 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -16,6 +16,7 @@
 #ifndef NSTACKX_SOCKET_H
 #define NSTACKX_SOCKET_H
 
+#include "sys_common_header.h"
 #include "nstackx_common_header.h"
 
 typedef enum SocketProtocol {

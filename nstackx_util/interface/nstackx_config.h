@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2021 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -31,12 +31,12 @@
 
 #endif /* NSTACKX_WITH_LITEOS */
 
-#ifdef NSTACKX_WITH_LINUX
+#ifdef NSTACKX_WITH_HMOS_LINUX
 
 #ifndef NSTACKX_2_4G_WIFI
 #define NSTACKX_2_4G_WIFI
 #endif
-#endif /* NSTACKX_WITH_LINUX */
+#endif /* NSTACKX_WITH_HMOS_LINUX */
 
 #ifndef NSTACKX_SUPPORT_FILLP
 #define NSTACKX_SUPPORT_FILLP 1

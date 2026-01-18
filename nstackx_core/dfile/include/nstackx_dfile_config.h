@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2021 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -16,8 +16,11 @@
 #ifndef NSTACKX_DFILE_CONFIG_H
 #define NSTACKX_DFILE_CONFIG_H
 
+#include <stdint.h>
+
+#include "nstackx_config.h"
 #include "nstackx_util.h"
-#include "nstackx_dfile_frame.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -33,14 +36,14 @@ typedef struct DFileConfig {
 } DFileConfig;
 
 typedef struct DFileTransConfig {
+    uint32_t maxRtt;
     uint8_t maxAckCnt; /* Sender wait for number of "maxAckCnt" ACK before timeout */
     uint8_t maxCtrlFrameRetryCnt; /* Max retry count for control frame */
-    uint8_t maxRecvIdleCnt; /* Max successive idle count before receiver timeout */
-    uint32_t maxRtt;
     uint32_t maxCtrlFrameTimeout; /* Max timeout value for control frame */
     uint32_t maxFileHeaderConfirmFrameTimeout; /* Max timeout value for wait file header confirm frame */
     uint32_t maxFileWriteTimeout; /* Max timeout value for writing all file data */
     uint32_t initialRecvIdleTimeout; /* Initial idle timeout value for receiver */
+    uint8_t maxRecvIdleCnt; /* Max successive idle count before receiver timeout */
     uint32_t initialAckInterval; /* Initial ACK interval during normal stage */
     uint32_t recvLimitAckInterval; /* Adjusted ACK interval after receiving 90% frames */
     uint32_t lastFrameAckInterval; /* Adjusted ACK interval after receiving last frame of last file */
@@ -178,8 +181,6 @@ int32_t GetDFileConfig(DFileConfig *dFileConfig, uint16_t mtu, uint16_t connType
 int32_t ConfigDFileTrans(uint16_t connType, DFileTransConfig *transConfig);
 void SetTidToBindInfo(const struct DFileSession *session, uint32_t pos);
 void SetTcpKeepAlive(SocketDesc fd);
-void DFileGetCipherCaps(struct DFileSession *session, SettingFrame *settingFramePara);
-void DFileChooseCipherType(SettingFrame *hostSettingFrame, struct DFileSession *session);
 
 #ifdef __cplusplus
 }

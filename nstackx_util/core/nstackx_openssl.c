@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2021 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -17,29 +17,6 @@
 #include "nstackx_error.h"
 #include "nstackx_log.h"
 #include "securec.h"
-
-#if defined(SSL_AND_CRYPTO_INCLUDED) && defined(NSTACKX_WITH_LINUX_STANDARD)
-#include <sys/auxv.h>
-#endif
-
-#ifdef BUILD_FOR_WINDOWS
-#if (defined(_MSC_VER) && !defined(__clang__)) || \
-    ((defined(__GNUC__) || defined(__clang__)) && defined(__AES__) && defined(__PCLMUL__))
-#if defined(__GNC__)
-#include <cpuid.h>
-#elif define(_MSC_VER)
-#include <intrin.h>
-#endif
-#include <immintrin.h>
-
-#define WINDOWS_AESNI_SUPPORT
-#define WIN_AESNI_ECI_IDX 2
-#endif
-
-#ifndef bit_AES
-#define bit_AES (1<<25)
-#endif
-#endif // BUILD_FOR_WINDOWS
 
 #define TAG "nStackXDFile"
 
@@ -59,7 +36,6 @@ int32_t GetRandBytes(uint8_t *buf, uint32_t len)
 
 EVP_CIPHER_CTX *CreateCryptCtx()
 {
-    LOGI(TAG, "openssl CreateCryptCtx");
     EVP_CIPHER_CTX *ctx = NULL;
     ctx = EVP_CIPHER_CTX_new();
     return ctx;
@@ -71,33 +47,26 @@ void ClearCryptCtx(EVP_CIPHER_CTX *ctx)
         EVP_CIPHER_CTX_free(ctx);
     }
 }
-static const EVP_CIPHER *GetCipher(CryptPara *cryptPara)
-{
-    if (cryptPara->cipherType == CIPHER_CHACHA) {
-        return EVP_get_cipherbyname(CHACHA20_POLY1305_NAME);
-    } else if (cryptPara->cipherType == CIPHER_AES_GCM) {
-        switch (cryptPara->keylen) {
-            case AES_128_KEY_LENGTH:
-                return EVP_aes_128_gcm();
-                break;
-            case AES_192_KEY_LENGTH:
-                return EVP_aes_192_gcm();
-                break;
-            case AES_256_KEY_LENGTH:
-                return EVP_aes_256_gcm();
-                break;
-            default:
-                return NULL;
-        }
-    }
-    return NULL;
-}
+
 static int32_t InitEncryptCtx(CryptPara *cryptPara)
 {
     int32_t length;
-    const EVP_CIPHER *cipher = GetCipher(cryptPara);
+    const EVP_CIPHER *cipher = NULL;
+    switch (cryptPara->keylen) {
+        case AES_128_KEY_LENGTH:
+            cipher = EVP_aes_128_gcm();
+            break;
+        case AES_192_KEY_LENGTH:
+            cipher = EVP_aes_192_gcm();
+            break;
+        case AES_256_KEY_LENGTH:
+            cipher = EVP_aes_256_gcm();
+            break;
+        default:
+            return NSTACKX_EFAILED;
+    }
 
-    if (cipher == NULL ||cryptPara->aadLen == 0 || cryptPara->ctx == NULL) {
+    if (cryptPara->aadLen == 0 || cryptPara->ctx == NULL) {
         return NSTACKX_EFAILED;
     }
 
@@ -126,7 +95,6 @@ uint32_t AesGcmEncryptVec(AesVec *vec, uint32_t vecNum, CryptPara *cryptPara, ui
     uint32_t retLen = 0;
     if (vecNum == 0 || outLen <= GCM_ADDED_LEN || cryptPara == NULL ||
         vec == NULL || outBuf == NULL) {
-        LOGE(TAG, "Invaid para");
         return 0;
     }
     if (InitEncryptCtx(cryptPara) != NSTACKX_EOK) {
@@ -175,9 +143,21 @@ uint32_t AesGcmEncrypt(const uint8_t *inBuf, uint32_t inLen, CryptPara *cryptPar
 static int32_t InitDecryptCtx(CryptPara *cryptPara)
 {
     int32_t length;
-    const EVP_CIPHER *cipher = GetCipher(cryptPara);
-
-    if (cipher == NULL || cryptPara->ivLen != GCM_IV_LENGTH || cryptPara->aadLen == 0 || cryptPara->ctx == NULL) {
+    const EVP_CIPHER *cipher = NULL;
+    switch (cryptPara->keylen) {
+        case AES_128_KEY_LENGTH:
+            cipher = EVP_aes_128_gcm();
+            break;
+        case AES_192_KEY_LENGTH:
+            cipher = EVP_aes_192_gcm();
+            break;
+        case AES_256_KEY_LENGTH:
+            cipher = EVP_aes_256_gcm();
+            break;
+        default:
+            return NSTACKX_EFAILED;
+    }
+    if (cryptPara->ivLen != GCM_IV_LENGTH || cryptPara->aadLen == 0 || cryptPara->ctx == NULL) {
         return NSTACKX_EFAILED;
     }
 
@@ -201,7 +181,6 @@ uint32_t AesGcmDecrypt(uint8_t *inBuf, uint32_t inLen, CryptPara *cryptPara, uin
     uint8_t buffer[AES_BLOCK_SIZE];
     if (inLen <= GCM_ADDED_LEN || outLen < inLen - GCM_ADDED_LEN || cryptPara == NULL ||
         inBuf == NULL || outBuf == NULL) {
-        LOGE(TAG, "Invaid para");
         return 0;
     }
     cryptPara->ivLen = GCM_IV_LENGTH;
@@ -235,55 +214,6 @@ uint32_t AesGcmDecrypt(uint8_t *inBuf, uint32_t inLen, CryptPara *cryptPara, uin
 uint8_t IsCryptoIncluded(void)
 {
     return NSTACKX_TRUE;
-}
-
-uint8_t QueryCipherSupportByName(char *name)
-{
-    if (EVP_get_cipherbyname(name) != NULL) {
-        return NSTACKX_TRUE;
-    }
-
-    LOGI(TAG, "devices no support %s", name);
-    return NSTACKX_FALSE;
-}
-#ifdef NSTACKX_WITH_LINUX_STANDARD
-#define AES_HWCAP (1UL << 3)
-#define AES_HWCAP2 (1UL << 0)
-
-static uint8_t CheckAesCapability(void)
-{
-    uint8_t ret = NSTACKX_FALSE;
-    LOGI(TAG, "CheckAesCapability enter");
-    unsigned long hwcaps = getauxval(AT_HWCAP);
-    unsigned long hwcaps2 = getauxval(AT_HWCAP2);
-    if ((hwcaps & AES_HWCAP) || (hwcaps2 & AES_HWCAP2)) {
-        ret = NSTACKX_TRUE;
-    }
-    return ret;
-}
-#endif
-
-/* check CPU supports AES-NI hardware optimize */
-uint8_t IsSupportHardwareAesNi(void)
-{
-#if defined(_WIN32) || defined(_WIN64)
-#if defined(WINDOWS_AESNI_SUPPORT)
-    int32_t cpuInfo[] = {0, 0, 0, 0};
-    __cpuid(cpuInfo, 1);
-    return (cpuInfo[WIN_AESNI_ECI_IDX] & bit_AES) != 0;
-#else
-    return NSTACKX_TRUE;
-#endif // defined(WINDOWS_AESNI_SUPPORT)
-
-#else // linux
-
-#ifdef NSTACKX_WITH_LINUX_STANDARD
-    return CheckAesCapability();
-#else
-    return NSTACKX_FALSE;
-#endif
-
-#endif // defined(_WIN32) || defined(_WIN64)
 }
 
 #else
@@ -332,18 +262,6 @@ uint32_t AesGcmDecrypt(uint8_t *inBuf, uint32_t inLen, CryptPara *cryptPara, uin
 
 uint8_t IsCryptoIncluded(void)
 {
-    return NSTACKX_FALSE;
-}
-
-uint8_t QueryCipherSupportByName(char *name)
-{
-    LOGI(TAG, "devices no support %s", name);
-    return NSTACKX_FALSE;
-}
-/* check CPU supports AES-NI hardware optimize */
-uint8_t IsSupportHardwareAesNi(void)
-{
-    LOGI(TAG, "no support AES-NI");
     return NSTACKX_FALSE;
 }
 

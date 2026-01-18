@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2021 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -31,7 +31,6 @@ static const char *g_illegalPathHeadString[] = {
 uint8_t IsFileNameLegal(const char *fileName)
 {
     if (fileName == NULL || strlen(fileName) == 0) {
-        LOGE(TAG, "illegal filename");
         return NSTACKX_FALSE;
     }
 

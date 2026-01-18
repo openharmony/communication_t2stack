@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Huawei Device Co., Ltd.
+ * Copyright (C) 2021 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -72,8 +72,6 @@ NSTACKX_EXPORT int32_t PthreadMutexLock(pthread_mutex_t *mutex);
 NSTACKX_EXPORT int32_t PthreadMutexUnlock(pthread_mutex_t *mutex);
 NSTACKX_EXPORT int32_t PthreadCreate(pthread_t *tid, const pthread_attr_t *attr, void *(*entry)(void *), void *arg);
 NSTACKX_EXPORT void PthreadJoin(pthread_t thread, void **retval);
-
-NSTACKX_EXPORT int32_t IpAddrAnonymousFormat(char *buf, size_t len, const struct sockaddr *addr, size_t addrLen);
 
 #ifdef __cplusplus
 }
