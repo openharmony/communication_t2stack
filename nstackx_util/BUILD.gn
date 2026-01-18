@@ -14,7 +14,10 @@
 import("//foundation/communication/dsoftbus/dsoftbus.gni")
 
 NSTACKX_ROOT = "//foundation/communication/dsoftbus/components/nstackx"
-
+cflags = [ "-DENABLE_DFINDER_HILOG" ]
+if (dsoftbus_standard_feature_ifname_prefix) {
+  cflags += [ "-DETH_DEV_NAME_PRE=\"br\"" ]
+}
 if (defined(ohos_lite)) {
   import("//build/lite/config/component/lite_component.gni")
   if (ohos_kernel_type == "liteos_a") {
@@ -34,7 +37,7 @@ if (defined(ohos_lite)) {
   }
   shared_library("nstackx_util.open") {
     if (ohos_kernel_type == "liteos_a") {
-      cflags = [
+      cflags += [
         "-Wall",
         "-D_GNU_SOURCE",
         "-DNSTACKX_WITH_LITEOS",
@@ -49,6 +52,7 @@ if (defined(ohos_lite)) {
         "platform/liteos",
         "$NSTACKX_ROOT/nstackx_core/",
         "//third_party/bounds_checking_function/include/",
+        "//base/hiviewdfx/hilog_lite/interfaces/native/innerkits/",
       ]
       sources = [
         "core/nstackx_dev.c",
@@ -66,9 +70,12 @@ if (defined(ohos_lite)) {
         "platform/liteos/sys_timer.c",
         "platform/liteos/sys_util.c",
       ]
-      deps = [ "//third_party/mbedtls" ]
+      deps = [
+        "//base/hiviewdfx/hilog_lite/frameworks/featured:hilog_shared",
+        "//third_party/mbedtls",
+      ]
     } else if (ohos_kernel_type == "linux") {
-      cflags = [
+      cflags += [
         "-Wall",
         "-DNSTACKX_WITH_HMOS_LINUX",
         "-DMBEDTLS_INCLUDED",
@@ -80,6 +87,7 @@ if (defined(ohos_lite)) {
         "platform/unix",
         "$NSTACKX_ROOT/nstackx_core/",
         "//third_party/bounds_checking_function/include/",
+        "//base/hiviewdfx/hilog_lite/interfaces/native/innerkits/",
       ]
       sources = [
         "core/nstackx_dev.c",
@@ -98,6 +106,7 @@ if (defined(ohos_lite)) {
         "platform/unix/sys_util.c",
       ]
       deps = [
+        "//base/hiviewdfx/hilog_lite/frameworks/featured:hilog_shared",
         "//third_party/mbedtls",
         "//third_party/mbedtls:mbedtls_shared",
       ]
@@ -109,13 +118,13 @@ if (defined(ohos_lite)) {
 
   config("nstackx_util_header") {
     include_dirs = [
-      "$dsoftbus_standard_feature_ifname_prefix_path/nstackx_util/interface",
+      "interface",
       "platform/unix",
     ]
   }
 
   ohos_shared_library("nstackx_util.open") {
-    cflags = [
+    cflags += [
       "-Wall",
       "-DMBEDTLS_INCLUDED",
       "-DNSTACKX_WITH_HMOS_LINUX",
@@ -123,10 +132,11 @@ if (defined(ohos_lite)) {
     cflags_cc = cflags
     include_dirs = [
       "include",
-      "$dsoftbus_standard_feature_ifname_prefix_path/nstackx_util/interface",
+      "interface",
       "platform/unix",
       "$NSTACKX_ROOT/nstackx_core/",
       "//utils/native/base/include/",
+      "//base/hiviewdfx/hilog/interfaces/native/innerkits/",
     ]
     sources = [
       "core/nstackx_dev.c",
@@ -149,6 +159,7 @@ if (defined(ohos_lite)) {
       "//third_party/mbedtls",
       "//utils/native/base:utilsecurec_shared",
     ]
+    external_deps = [ "hiviewdfx_hilog_native:libhilog" ]
     public_configs = [ ":nstackx_util_header" ]
     part_name = "dsoftbus_standard"
     subsystem_name = "communication"
