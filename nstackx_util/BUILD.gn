@@ -11,10 +11,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-DSOFTBUS_ROOT_PATH = "./../../.."
-import("$DSOFTBUS_ROOT_PATH/dsoftbus.gni")
+NSTACKX_ROOT = "./.."
+import("$NSTACKX_ROOT/t2stack.gni")
 
-NSTACKX_ROOT = "$DSOFTBUS_ROOT_PATH/components/nstackx"
 cflags = [ "-DENABLE_USER_LOG" ]
 if (defined(ohos_lite)) {
   import("//build/lite/config/component/lite_component.gni")
@@ -232,7 +231,7 @@ if (defined(ohos_lite)) {
     }
     public_configs = [ ":nstackx_util_header" ]
     innerapi_tags = [ "platformsdk_indirect" ]
-    part_name = "dsoftbus"
-    subsystem_name = "communication"
+    part_name = "t2stack"
+    subsystem_name = "dsoftbus"
   }
 }
