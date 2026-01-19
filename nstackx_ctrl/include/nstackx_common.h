@@ -30,7 +30,7 @@ typedef struct {
 } GetDeviceListMessage;
 #endif
 
-typedef struct DeviceInfo DeviceInfo;
+struct DeviceInfo;
 
 void NotifyDeviceListChanged(const NSTACKX_DeviceInfo *deviceList, uint32_t deviceCount);
 void NotifyDeviceFound(const NSTACKX_DeviceInfo *deviceList, uint32_t deviceCount);
