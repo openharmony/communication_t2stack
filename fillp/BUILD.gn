@@ -88,12 +88,9 @@ if (defined(ohos_lite)) {
     cflags = fillp_cflags
     cflags += [ "-Wall" ]
     include_dirs = fillp_include
-    include_dirs += [ "//third_party/bounds_checking_function/include/" ]
     sources = fillp_source
-    deps = [
-      "$NSTACKX_ROOT/nstackx_util:nstackx_util.open",
-      "//third_party/bounds_checking_function:libsec_shared",
-    ]
+    deps = [ "$NSTACKX_ROOT/nstackx_util:nstackx_util.open" ]
+    external_deps = [ "bounds_checking_function:libsec_shared" ]
 
     if (ohos_kernel_type == "liteos_a") {
       cflags += [ "-DNSTACKX_WITH_LITEOS" ]
@@ -105,6 +102,9 @@ if (defined(ohos_lite)) {
   import("//build/ohos.gni")
   ohos_shared_library("FillpSo.open") {
     sanitize = {
+      ubsan = true
+      integer_overflow = true
+      boundary_sanitize = true
       cfi = true
       cfi_cross_dso = true
       debug = false
@@ -118,15 +118,12 @@ if (defined(ohos_lite)) {
     ]
 
     include_dirs = fillp_include
-    include_dirs += [
-      "//commonlibrary/c_utils/base/include/",
-      "//third_party/bounds_checking_function/include",
-    ]
     sources = fillp_source
-    deps = [
-      "$NSTACKX_ROOT/nstackx_util:nstackx_util.open",
-      "//third_party/bounds_checking_function:libsec_shared",
-    ]
+    deps = [ "$NSTACKX_ROOT/nstackx_util:nstackx_util.open" ]
+    external_deps = [ "bounds_checking_function:libsec_shared" ]
+    if (is_standard_system) {
+      external_deps += [ "c_utils:utils" ]
+    }
 
     innerapi_tags = [ "platformsdk_indirect" ]
     part_name = "dsoftbus"
