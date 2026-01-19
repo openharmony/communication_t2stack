@@ -11,7 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//foundation/communication/dsoftbus/dsoftbus.gni")
+DSOFTBUS_ROOT_PATH = "./../../.."
+import("$DSOFTBUS_ROOT_PATH/dsoftbus.gni")
 
 cflags = [
   "-DENABLE_USER_LOG",
@@ -154,6 +155,11 @@ if (defined(ohos_lite)) {
     include_dirs = [ "interface" ]
   }
   ohos_shared_library("nstackx_ctrl") {
+    sanitize = {
+      cfi = true
+      cfi_cross_dso = true
+      debug = false
+    }
     cflags += [ "-DDFINDER_MGT_MSG_LOG" ]
     cflags_cc = cflags
     sources = [
@@ -187,11 +193,12 @@ if (defined(ohos_lite)) {
     public_configs = [ ":dfinder_interface" ]
     deps = [
       "../nstackx_util:nstackx_util.open",
-      "//third_party/bounds_checking_function:libsec_static",
+      "//third_party/bounds_checking_function:libsec_shared",
       "//third_party/cJSON:cjson",
       "//third_party/libcoap:libcoap",
     ]
     subsystem_name = "communication"
+    innerapi_tags = [ "platformsdk_indirect" ]
     part_name = "dsoftbus"
   }
 }

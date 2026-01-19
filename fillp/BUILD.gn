@@ -11,9 +11,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//foundation/communication/dsoftbus/dsoftbus.gni")
+DSOFTBUS_ROOT_PATH = "./../../.."
+import("$DSOFTBUS_ROOT_PATH/dsoftbus.gni")
 
-NSTACKX_ROOT = "//foundation/communication/dsoftbus/components/nstackx"
+NSTACKX_ROOT = "$DSOFTBUS_ROOT_PATH/components/nstackx"
 fillp_source = [
   "src/app_lib/src/api.c",
   "src/app_lib/src/epoll_app.c",
@@ -104,6 +105,11 @@ if (defined(ohos_lite)) {
 } else {
   import("//build/ohos.gni")
   ohos_shared_library("FillpSo.open") {
+    sanitize = {
+      cfi = true
+      cfi_cross_dso = true
+      debug = false
+    }
     cflags = fillp_cflags
     cflags += [
       "-Wall",
@@ -121,6 +127,7 @@ if (defined(ohos_lite)) {
       "//third_party/bounds_checking_function:libsec_shared",
     ]
 
+    innerapi_tags = [ "platformsdk_indirect" ]
     part_name = "dsoftbus"
     subsystem_name = "communication"
   }
