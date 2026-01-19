@@ -13,20 +13,24 @@
 
 if (defined(ohos_lite)) {
   import("//build/lite/config/component/lite_component.gni")
-  lite_component("nstackx_dfile") {
+  lite_component("nstackx") {
     features = [
+      "fillp:FillpSo.open",
       "nstackx_congestion:nstackx_congestion.open",
       "nstackx_core/dfile:nstackx_dfile.open",
       "nstackx_util:nstackx_util.open",
+      "nstackx_ctrl:nstackx_ctrl",
     ]
   }
 } else {
   import("//build/ohos.gni")
-  group("nstackx_dfile") {
+  group("nstackx") {
     deps = [
+      "fillp:FillpSo.open",
       "nstackx_congestion:nstackx_congestion.open",
       "nstackx_core/dfile:nstackx_dfile.open",
       "nstackx_util:nstackx_util.open",
+      "nstackx_ctrl:nstackx_ctrl",
     ]
   }
 }
