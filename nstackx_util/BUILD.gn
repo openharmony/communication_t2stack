@@ -38,7 +38,6 @@ if (defined(ohos_lite)) {
   if (ohos_kernel_type == "liteos_m") {
     static_library("nstackx_util.open") {
       cflags += [
-        "-Wall",
         "-D_GNU_SOURCE",
         "-DNSTACKX_WITH_LITEOS",
         "-DLWIP_DONT_PROVIDE_BYTEORDER_FUNCTIONS",
@@ -47,6 +46,9 @@ if (defined(ohos_lite)) {
         "-DNSTACKX_WITH_LITEOS_M",
         "-DENABLE_USER_LOG",
       ]
+      if (board_toolchain_type != "iccarm") {
+        cflags += [ "-Wall" ]
+      }
       cflags_cc = cflags
       include_dirs = [
         "include",
@@ -171,18 +173,24 @@ if (defined(ohos_lite)) {
 
   ohos_shared_library("nstackx_util.open") {
     cflags += [
-      "-Wall",
       "-DMBEDTLS_INCLUDED",
       "-DNSTACKX_WITH_HMOS_LINUX",
       "-DENABLE_USER_LOG",
     ]
+    if (defined(board_toolchain_type)) {
+      if (board_toolchain_type != "iccarm") {
+        cflags += [ "-Wall" ]
+      }
+    } else {
+      cflags += [ "-Wall" ]
+    }
     cflags_cc = cflags
     include_dirs = [
       "include",
       "interface",
       "platform/unix",
       "$NSTACKX_ROOT/nstackx_core/",
-      "//utils/native/base/include/",
+      "//commonlibrary/c_utils/base/include/",
       "//third_party/bounds_checking_function/include",
       "//base/hiviewdfx/hilog/interfaces/native/innerkits/",
     ]
