@@ -11,9 +11,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//foundation/communication/dsoftbus/dsoftbus.gni")
+DSOFTBUS_ROOT_PATH = "./../../../.."
+import("$DSOFTBUS_ROOT_PATH/dsoftbus.gni")
 
-NSTACKX_ROOT = "//foundation/communication/dsoftbus/components/nstackx"
+NSTACKX_ROOT = "$DSOFTBUS_ROOT_PATH/components/nstackx"
 if (defined(ohos_lite)) {
   import("//build/lite/config/component/lite_component.gni")
   config("dfile_lite_config") {
@@ -75,6 +76,7 @@ if (defined(ohos_lite)) {
         "$NSTACKX_ROOT/nstackx_congestion:nstackx_congestion.open",
         "$NSTACKX_ROOT/nstackx_util:nstackx_util.open",
         "//third_party/mbedtls",
+        "//third_party/openssl/ohos_lite:openssl_shared",
       ]
     } else if (ohos_kernel_type == "linux") {
       configs += [ ":dfile_linux_config" ]
@@ -110,6 +112,7 @@ if (defined(ohos_lite)) {
         "$NSTACKX_ROOT/nstackx_congestion:nstackx_congestion.open",
         "$NSTACKX_ROOT/nstackx_util:nstackx_util.open",
         "//third_party/mbedtls",
+        "//third_party/openssl/ohos_lite:openssl_shared",
       ]
     }
   }
@@ -117,6 +120,11 @@ if (defined(ohos_lite)) {
   import("//build/ohos.gni")
 
   ohos_shared_library("nstackx_dfile.open") {
+    sanitize = {
+      cfi = true
+      cfi_cross_dso = true
+      debug = false
+    }
     cflags = [
       "-Wall",
       "-DMBEDTLS_INCLUDED",
@@ -159,7 +167,9 @@ if (defined(ohos_lite)) {
       "$NSTACKX_ROOT/nstackx_util:nstackx_util.open",
       "//third_party/bounds_checking_function:libsec_shared",
       "//third_party/mbedtls",
+      "//third_party/openssl:libcrypto_shared",
     ]
+    innerapi_tags = [ "platformsdk_indirect" ]
     part_name = "dsoftbus"
     subsystem_name = "communication"
   }

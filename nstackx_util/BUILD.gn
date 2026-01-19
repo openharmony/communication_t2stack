@@ -11,9 +11,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//foundation/communication/dsoftbus/dsoftbus.gni")
+DSOFTBUS_ROOT_PATH = "./../../.."
+import("$DSOFTBUS_ROOT_PATH/dsoftbus.gni")
 
-NSTACKX_ROOT = "//foundation/communication/dsoftbus/components/nstackx"
+NSTACKX_ROOT = "$DSOFTBUS_ROOT_PATH/components/nstackx"
 cflags = [ "-DENABLE_USER_LOG" ]
 if (dsoftbus_feature_ifname_prefix) {
   cflags += [ "-DETH_DEV_NAME_PRE=\"br\"" ]
@@ -174,6 +175,11 @@ if (defined(ohos_lite)) {
   }
 
   ohos_shared_library("nstackx_util.open") {
+    sanitize = {
+      cfi = true
+      cfi_cross_dso = true
+      debug = false
+    }
     cflags += [
       "-DMBEDTLS_INCLUDED",
       "-DNSTACKX_WITH_HMOS_LINUX",
@@ -218,8 +224,9 @@ if (defined(ohos_lite)) {
       "//third_party/bounds_checking_function:libsec_shared",
       "//third_party/mbedtls",
     ]
-    external_deps = [ "hiviewdfx_hilog_native:libhilog" ]
+    external_deps = [ "hilog:libhilog" ]
     public_configs = [ ":nstackx_util_header" ]
+    innerapi_tags = [ "platformsdk_indirect" ]
     part_name = "dsoftbus"
     subsystem_name = "communication"
   }
