@@ -23,9 +23,18 @@
 extern "C" {
 #endif
 
+#define NSTACKX_MAX_URI_BUFFER_LENGTH 64
+#ifdef DFINDER_USE_MINI_NSTACKX
+#define COAP_DEVICE_DISCOVER_URI "device_discover"
+#endif
+
 struct DeviceInfo;
 
+#ifdef DFINDER_SUPPORT_MULTI_NIF
+char *PrepareServiceDiscoverWithIdx(uint8_t isBroadcast, uint32_t idx);
+#else
 char *PrepareServiceDiscover(uint8_t isBroadcast);
+#endif
 int32_t ParseServiceDiscover(const uint8_t *buf, struct DeviceInfo *deviceInfo, char **remoteUrlPtr);
 
 #ifdef __cplusplus
