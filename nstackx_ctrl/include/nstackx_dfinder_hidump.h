@@ -18,12 +18,17 @@
 #include "sys_common_header.h"
 #include "nstackx.h"
 #include "nstackx_device.h"
+#include "nstackx_inet.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #define DUMP_MSG_ADD_CHECK(ret, data, index, size, fmt, ...) do { \
+    if (size <= index) { \
+        DFINDER_LOGE(TAG, "dumper index more than size"); \
+        return NSTACKX_EFAILED; \
+    } \
     ret = sprintf_s(data + index, size - index, fmt, ##__VA_ARGS__); \
     if (ret < 0) { \
         DFINDER_LOGE(TAG, "dumper buffer over %u bytes", size); \
@@ -33,8 +38,15 @@ extern "C" {
 } while (0)
 
 #ifdef NSTACKX_DFINDER_HIDUMP
+struct DumpIfaceInfo {
+    const char *ifname;
+    uint8_t state;
+    uint8_t af;
+    const union InetAddr *addr;
+};
+
 int DFinderDump(const char **argv, uint32_t argc, void *softObj, DFinderDumpFunc dump);
-int DFinderDumpIface(char *buf, int size, const char *ifname, const struct in_addr *ip, uint8_t state);
+int DFinderDumpIface(const struct DumpIfaceInfo *info, char *buf, int size);
 int DumpDeviceInfo(const DeviceInfo *info, char *buf, int size, uint8_t remote);
 #endif
 

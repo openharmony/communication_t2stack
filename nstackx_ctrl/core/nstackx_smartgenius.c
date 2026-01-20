@@ -133,14 +133,14 @@ static void IfAddrMsgHandle(struct nlmsghdr *msgHdr)
 
     if (msgHdr->nlmsg_type == RTM_NEWADDR) {
         if (memcpy_s(&interfaceInfo.ip, sizeof(interfaceInfo.ip),
-            RTA_DATA(tb[IFA_ADDRESS]), sizeof(interfaceInfo.ip)) != EOK) {
+            RTA_DATA(tb[IFA_ADDRESS]), sizeof(struct in_addr)) != EOK) {
             return;
         }
         DFINDER_LOGD(TAG, "Interface %s got new address.", interfaceInfo.name);
-        AddLocalIface(interfaceInfo.name, &interfaceInfo.ip);
+        AddLocalIface(interfaceInfo.name, AF_INET, &interfaceInfo.ip);
     } else {
         DFINDER_LOGD(TAG, "Interface %s delete address.", interfaceInfo.name);
-        RemoveLocalIface(interfaceInfo.name);
+        RemoveLocalIface(AF_INET, interfaceInfo.name);
     }
 }
 
