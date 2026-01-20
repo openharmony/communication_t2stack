@@ -114,11 +114,10 @@ if (defined(ohos_lite)) {
         ]
         # include_dirs += standard_small_diff_include_dirs
         include_dirs += [
-          "include/coap_discover",
-          "$dsoftbus_root_path/interfaces/kits/nstackx"
+          "include/coap_discover"
         ]
 
-        deps = [ "$dsoftbus_root_path/core/common:softbus_utils" ]
+        external_deps = [ "dsoftbus:softbus_utils" ]
       } else {
         sources = base_src
         sources += mini_diff_src
@@ -156,10 +155,10 @@ if (defined(ohos_lite)) {
         ]
         # include_dirs += standard_small_diff_include_dirs
         include_dirs += [
-          "include/coap_discover",
-          "$dsoftbus_root_path/interfaces/kits/nstackx"
+          "include/coap_discover"
         ]
         deps = [ "../nstackx_util:nstackx_util.open" ]
+        external_deps = [ "dsoftbus:softbus_utils" ]
         public_configs = [ ":nstackx_ctrl_interface" ]
       } else {
         sources = base_src
@@ -167,8 +166,7 @@ if (defined(ohos_lite)) {
         include_dirs = base_include_dirs
         # include_dirs += standard_small_diff_include_dirs
         include_dirs += [
-          "include/coap_discover",
-          "$dsoftbus_root_path/interfaces/kits/nstackx"
+          "include/coap_discover"
         ]
         public_configs = [ ":nstackx_ctrl_interface" ]
         deps = [
@@ -177,6 +175,7 @@ if (defined(ohos_lite)) {
         ]
         external_deps = [
           "bounds_checking_function:libsec_shared",
+          "dsoftbus:softbus_utils",
           "libcoap:libcoap",
         ]
         if (ohos_kernel_type == "liteos_a") {
@@ -220,10 +219,10 @@ if (defined(ohos_lite)) {
       ]
       # include_dirs += standard_small_diff_include_dirs
       include_dirs += [
-        "include/coap_discover",
-        "$dsoftbus_root_path/interfaces/kits/nstackx"
+        "include/coap_discover"
       ]
       deps = [ "../nstackx_util:nstackx_util.open" ]
+      external_deps = [ "dsoftbus:softbus_utils" ]
       public_configs = [ ":nstackx_ctrl_interface" ]
     } else {
       cflags += [
@@ -236,8 +235,7 @@ if (defined(ohos_lite)) {
       include_dirs = base_include_dirs
       # include_dirs += standard_small_diff_include_dirs
       include_dirs += [
-        "include/coap_discover",
-        "$dsoftbus_root_path/interfaces/kits/nstackx"
+        "include/coap_discover"
       ]
       include_dirs += [ "../nstackx_util/platform/unix" ]
       public_configs = [ ":nstackx_ctrl_interface" ]
@@ -245,6 +243,7 @@ if (defined(ohos_lite)) {
       external_deps = [
         "bounds_checking_function:libsec_shared",
         "cJSON:cjson",
+        "dsoftbus:softbus_utils",
         "libcoap:libcoap",
       ]
     }

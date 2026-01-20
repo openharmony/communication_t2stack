@@ -29,12 +29,13 @@
     "deps": {
       "components": [
         "bounds_checking_function",
-        "hilog",
-        "openssl",
         "c_utils",
         "cJSON",
+        "dsoftbus",
+        "hilog",
+        "libcoap",
         "mbedtls",
-        "libcoap"
+        "openssl"
       ],
       "third_party": [
         "cJSON",
