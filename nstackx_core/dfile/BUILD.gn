@@ -132,6 +132,13 @@ if (defined(ohos_lite)) {
 } else {
   import("//build/ohos.gni")
 
+  config("nstackx_dfile_open_header") {
+    include_dirs = [
+      "interface",
+      "../../nstackx_util/interface",
+    ]
+  }
+
   ohos_shared_library("nstackx_dfile.open") {
     sanitize = {
       ubsan = true
@@ -195,6 +202,7 @@ if (defined(ohos_lite)) {
     if (is_standard_system) {
       external_deps += [ "c_utils:utils" ]
     }
+    public_configs = [ ":nstackx_dfile_open_header" ]
     innerapi_tags = [ "platformsdk_indirect" ]
     part_name = "t2stack"
     subsystem_name = "communication"
