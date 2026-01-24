@@ -52,7 +52,44 @@
       "modules" : [
         "//foundation/communication/t2stack:nstackx"
       ],
-      "inner_api": [
+      "inner_kits": [
+          {
+            "name": "//foundation/communication/t2stack/fillp:FillpSo.open",
+            "header": {
+              "header_files": [
+                "fillp/include/fillpinc.h",
+                "fillp/include/fillptypes.h"
+              ],
+              "header_base": "//foundation/communication/t2stack"
+            }
+          },
+          {
+            "name": "//foundation/communication/t2stack/nstackx_ctrl:nstackx_ctrl",
+            "header": {
+              "header_files": [
+                "nstackx_ctrl/interface/nstackx.h"
+              ],
+              "header_base": "//foundation/communication/t2stack"
+            }
+          },
+          {
+            "name": "//foundation/communication/t2stack/nstackx_core/dfile:nstackx_dfile.open",
+            "header": {
+              "header_files": [
+                "nstackx_core/dfile/interface/nstackx_dfile.h"
+              ],
+              "header_base": "//foundation/communication/t2stack"
+            }
+          },
+          {
+            "name": "//foundation/communication/t2stack/nstackx_util:nstackx_util.open",
+            "header": {
+              "header_files": [
+                "nstackx_util/interface/nstackx_error.h"
+              ],
+              "header_base": "//foundation/communication/t2stack"
+            }
+          }
       ],
       "test": [
       ]
