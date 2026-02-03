@@ -33,6 +33,12 @@ fillp_cflags = [
   "-DFILLP_MGT_MSG_LOG",
 ]
 
+config("nstackx_FillpSo_open_header") {
+  include_dirs = [
+    "include"
+  ]
+}
+
 if (defined(ohos_lite)) {
   import("//build/lite/config/component/lite_component.gni")
   shared_library("FillpSo.open") {
@@ -100,15 +106,10 @@ if (defined(ohos_lite)) {
     } else {
       cflags += [ "-DNSTACKX_WITH_LINUX" ]
     }
+    public_configs = [ ":nstackx_FillpSo_open_header" ]
   }
 } else {
   import("//build/ohos.gni")
-
-  config("nstackx_FillpSo_open_header") {
-    include_dirs = [
-      "include/fillptypes.h",
-    ]
-  }
 
   ohos_shared_library("FillpSo.open") {
     sanitize = {
