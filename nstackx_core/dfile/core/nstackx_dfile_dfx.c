@@ -18,6 +18,7 @@
 #include "nstackx_dfile_session.h"
 #include "nstackx_dfile_transfer.h"
 #include "nstackx_dfile_log.h"
+#include "parse_dfile_dump_int64.h"
 
 #define TAG "nStackXDFile"
 #ifdef DFILE_ENABLE_HIDUMP
@@ -147,8 +148,8 @@ int32_t HidumpInformation(char *message, size_t *size, char *opt)
     DFileSession *session = NULL;
     DFileSessionNode *node = NULL;
 
-    sessionId = (int64_t)strtol(opt, NULL, DUMP_DECIMAL);
-    if (sessionId > USHRT_MAX) {
+    if (!ParseDfileDumpInt64(opt, &sessionId) || sessionId < 0 || sessionId > USHRT_MAX) {
+        DFILE_LOGE(TAG, "invalid hidump session id");
         (void)sprintf_s(message, DUMP_INFO_MAX, "session id is overflowing");
         *size = strlen(message);
         return NSTACKX_EOK;
@@ -189,9 +190,11 @@ bool GetDfileDumpFrameSwitch()
 int32_t HidumpMessage(char *message, size_t *size, char *opt)
 {
     int ret = 0;
-    int64_t input;
-    input = (int64_t)strtol(opt, NULL, DUMP_DECIMAL);
-    if (input == 1) {
+    int64_t input = 0;
+    if (!ParseDfileDumpInt64(opt, &input)) {
+        DFILE_LOGE(TAG, "invalid hidump switch");
+        ret = sprintf_s(message, DUMP_INFO_MAX, "Invalid input");
+    } else if (input == 1) {
         SetDfileDumpFrameSwitch(1);
         ret = sprintf_s(message, DUMP_INFO_MAX, "Signaling packet switch is open");
     } else if (input == 0) {
